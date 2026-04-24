@@ -122,3 +122,9 @@ Without an API key, the app still works with rule-based and fuzzy matching.
 3. Start the frontend.
 4. Click a start point on the map.
 5. Ask something like `nearest restroom` or `route to bethesda terrace`.
+
+## Live Demo
+Public website: https://central-park-frontend.onrender.com/
+
+## QR Code
+![Web App QR Code](central-park-webapp-qr.png)
