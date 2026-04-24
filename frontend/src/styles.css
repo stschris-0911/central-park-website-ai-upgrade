@@ -1,0 +1,276 @@
+:root {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #0f172a;
+  background: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; min-height: 100%; height: 100%; }
+body { background: #e5e7eb; }
+button, input { font: inherit; }
+
+.app-shell {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  overflow: hidden;
+}
+
+.map-shell {
+  position: relative;
+  background: #cbd5e1;
+}
+
+.map-root {
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+}
+
+.topbar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.96);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+}
+
+.topbar__title {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.topbar__search {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.legend-card,
+.route-card {
+  position: absolute;
+  z-index: 1000;
+  background: rgba(255,255,255,0.96);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  border-radius: 18px;
+  padding: 14px;
+  max-width: 360px;
+}
+
+.legend-card {
+  right: 16px;
+  bottom: 16px;
+  width: 320px;
+}
+
+.route-card {
+  left: 16px;
+  bottom: 16px;
+  width: 360px;
+  max-height: 48vh;
+  overflow: auto;
+}
+
+.legend-card h3,
+.route-card h3,
+.route-card h4,
+.chat-panel h2 {
+  margin: 0 0 10px;
+}
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legend-note {
+  margin: 12px 0 0;
+  color: #475569;
+  font-size: 13px;
+}
+
+.route-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.route-card__header button,
+.chat-panel__footer button,
+.chat-quick-actions button {
+  border: 0;
+  border-radius: 12px;
+  background: #0f172a;
+  color: white;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.route-meta {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.route-description {
+  margin: 0 0 12px;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.path-node-list {
+  display: grid;
+  gap: 10px;
+}
+
+.path-node-item {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.path-node-item__title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.path-node-item__meta {
+  color: #475569;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.path-node-item__desc {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.chat-panel {
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+}
+
+.chat-panel__header,
+.chat-panel__footer {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.chat-panel__footer {
+  border-bottom: 0;
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 12px;
+}
+
+.chat-panel__header p {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.chat-panel__messages {
+  overflow: auto;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  background: #f8fafc;
+}
+
+.chat-bubble {
+  max-width: 90%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  line-height: 1.45;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.chat-bubble--assistant {
+  background: white;
+  color: #0f172a;
+  justify-self: start;
+}
+
+.chat-bubble--user {
+  background: #0f172a;
+  color: white;
+  justify-self: end;
+}
+
+.chat-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chat-quick-actions button {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.chat-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.chat-input-row input {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 60vh 40vh;
+  }
+
+  .chat-panel {
+    height: auto;
+  }
+
+  .legend-card {
+    width: 280px;
+  }
+
+  .route-card {
+    width: 300px;
+  }
+}
