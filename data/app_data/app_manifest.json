@@ -1,0 +1,10 @@
+{
+  "park": "Central Park",
+  "nodes_csv": "final_candidate_nodes_gridcoded.csv",
+  "infra_csv": "infrastructure_nodes_gridcoded.csv",
+  "gate_csv": "gate_nodes_gridcoded.csv",
+  "edges_geojson": "augmented_graph_edges.geojson",
+  "graph_pickle": "park_graph.pkl",
+  "graph_crs": "EPSG:4326",
+  "notes": "Use these files as the app_data source for the navigation web app prototype. The graph pickle is exported in WGS84 for browser route rendering."
+}
