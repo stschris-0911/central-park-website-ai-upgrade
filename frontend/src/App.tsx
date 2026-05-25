@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ChatPanel from "./components/ChatPanel";
 import Legend from "./components/Legend";
 import MapView from "./components/MapView";
+import OriginalVisionPanel from "./components/OriginalVisionPanel";
 import RoutePanel from "./components/RoutePanel";
 import TopBar from "./components/TopBar";
 import { fetchEdges, fetchNodes, fetchRoute, sendChat } from "./lib/api";
@@ -1078,6 +1079,7 @@ export default function App() {
           onStopSpeaking={handleStopSpeaking}
           onReset={resetRoute}
         />
+        <OriginalVisionPanel />
       </main>
 
       <ChatPanel

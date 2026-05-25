@@ -3,3 +3,8 @@ services:
     name: central-park-navigation-website
     env: docker
     plan: free
+    envVars:
+      - key: INSTALL_VISION_RUNTIME
+        value: "1"
+      - key: VISION_JOBS_DIR
+        value: /tmp/centralpark_vision_jobs

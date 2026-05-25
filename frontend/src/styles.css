@@ -283,6 +283,153 @@ input:focus-visible {
   background: #9ca3af;
 }
 
+.side-dock-handle {
+  touch-action: none;
+  cursor: ew-resize;
+}
+
+.original-vision-card {
+  position: absolute;
+  top: 84px;
+  right: 16px;
+  z-index: 1450;
+  width: min(340px, calc(100% - 32px));
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.16);
+}
+
+.original-vision-card__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.original-vision-card h3,
+.original-vision-card p {
+  margin: 0;
+}
+
+.original-vision-card h3 {
+  font-size: 15px;
+}
+
+.original-vision-card p {
+  margin-top: 3px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.original-vision-card__header button,
+.original-vision-card__mode button,
+.original-vision-card__run,
+.original-vision-card__file {
+  min-height: 36px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #f9fafb;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.original-vision-card__mode {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.original-vision-card__mode button[aria-pressed="true"] {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.original-vision-card__file {
+  justify-content: stretch;
+  cursor: pointer;
+}
+
+.original-vision-card__camera {
+  display: grid;
+  gap: 8px;
+}
+
+.original-vision-card__preview {
+  width: 100%;
+  max-height: 190px;
+  border-radius: 8px;
+  background: #111827;
+  object-fit: cover;
+}
+
+.original-vision-card__file span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.original-vision-card__file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.original-vision-card__run {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.original-vision-card__run:disabled {
+  border-color: #d1d5db;
+  background: #e5e7eb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.original-vision-card__warning {
+  padding: 8px;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412 !important;
+}
+
+.original-vision-card__video {
+  width: 100%;
+  max-height: 280px;
+  border-radius: 8px;
+  background: #111827;
+}
+
+.original-vision-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.original-vision-card__meta span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .route-card__handle {
   margin: -6px 0 -2px;
 }
@@ -728,6 +875,45 @@ input:focus-visible {
 
   .route-card--half .path-node-list {
     display: none;
+  }
+
+  .original-vision-card {
+    position: fixed;
+    top: max(272px, calc(env(safe-area-inset-top) + 246px));
+    right: 12px;
+    width: min(224px, calc(100vw - 24px));
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .original-vision-card--expanded {
+    left: 12px;
+    width: auto;
+  }
+
+  .original-vision-card h3 {
+    font-size: 14px;
+  }
+
+  .original-vision-card p,
+  .original-vision-card__meta span {
+    font-size: 11px;
+  }
+
+  .original-vision-card__header button,
+  .original-vision-card__mode button,
+  .original-vision-card__run,
+  .original-vision-card__file {
+    min-height: 34px;
+    font-size: 12px;
+  }
+
+  .original-vision-card__video {
+    max-height: 220px;
+  }
+
+  .original-vision-card__preview {
+    max-height: 160px;
   }
 
   .chat-panel {

@@ -1,0 +1,7 @@
+# Optional heavy dependencies for the original Python vision runtime.
+# Install these only on the machine/server that should execute
+# frontend/public/vision_original/open_path.py and crosswalk.py.
+ultralytics==8.3.165
+opencv-python-headless==4.10.0.84
+pandas==2.2.3
+scipy==1.14.1

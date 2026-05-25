@@ -28,6 +28,10 @@
 	<string>Central Park Navigator uses your location to set the starting point for accessible walking routes.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>Central Park Navigator uses the compass to pan audio toward the next navigation beacon.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Central Park Navigator uses the camera for on-device path and crosswalk vision guidance.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Central Park Navigator lets you import saved walking videos to test on-device vision guidance.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -39,8 +43,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>

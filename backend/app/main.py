@@ -12,6 +12,7 @@ from app.routers.chat import router as chat_router
 from app.routers.data import router as data_router
 from app.routers.health import router as health_router
 from app.routers.route import router as route_router
+from app.routers.vision import router as vision_router
 
 app = FastAPI(title=APP_TITLE)
 app.add_middleware(
@@ -26,6 +27,7 @@ app.include_router(health_router)
 app.include_router(data_router)
 app.include_router(route_router)
 app.include_router(chat_router)
+app.include_router(vision_router)
 
 if FRONTEND_DIST_DIR.exists():
     assets_dir = FRONTEND_DIST_DIR / "assets"
