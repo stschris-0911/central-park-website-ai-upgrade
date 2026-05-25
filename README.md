@@ -22,6 +22,7 @@ Main features:
 - path description with node metadata
 - frontend uses **relative `/api` calls**, so it works in production on the same domain
 - backend can serve the built frontend in production
+- static-frame computer vision API for curb, sidewalk, road, and crosswalk guidance
 
 ## Required data files
 
@@ -53,6 +54,11 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+The vision endpoints use YOLO segmentation and require the heavier CV packages in
+`backend/requirements.txt` (`ultralytics`, `torch`, `opencv-python-headless`, and
+`numpy`). The backend imports this module lazily, so Jetson camera, MQTT haptic,
+and custom audio-player modules are not required for the web server to start.
+
 ### Frontend
 ```bash
 cd frontend
@@ -63,6 +69,16 @@ npm run dev
 Open:
 - frontend: `http://localhost:5173`
 - backend health: `http://127.0.0.1:8000/api/health`
+
+For local browser development, the frontend can use relative `/api` requests
+through the Vite proxy/configuration already in the project. For Capacitor or
+another device on your network, build with an explicit API base URL:
+
+```bash
+VITE_API_BASE_URL=http://192.168.x.x:8000 npm run build
+```
+
+Use your Mac's LAN IP address for `192.168.x.x` when testing on a real iPhone.
 
 ## Production / website deployment
 
@@ -83,6 +99,195 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 Then deploy the repository as one service.
+
+## Vision module
+
+The old main app did not expose a reusable backend vision API. This version adds
+a new local perception module under:
+
+```
+backend/app/services/vision/
+backend/app/routers/vision.py
+backend/app/models/vision/best.pt
+backend/app/models/vision/crosswalk.pt
+```
+
+The module refactors the virtual-whisker prototype into backend services:
+- YOLO segmentation for `curb_down`, `curb_up`, `road`, `sidewalk`, and `crosswalk`
+- traversable-space scoring from sidewalk/path-like masks using a 3x7 grid,
+  neighborhood-weighted cell scores, center-preferred tie breaking, and curb
+  penalties
+- fan-zone curb warning for left/front/right curb hazards
+- crosswalk centering based on weighted lower-frame scan lines
+- JSON guidance output for static image frames
+
+The hardware-specific pieces from the prototype, such as Jetson/GStreamer camera
+capture, MQTT haptics, FluidSynth beeps, and custom prerecorded audio players,
+are intentionally not required by the server. Live camera streaming and mobile
+navigation fusion are future work.
+
+### Vision API
+
+Health:
+
+```bash
+curl http://127.0.0.1:8000/api/vision/health
+```
+
+Analyze a curb/open-path frame:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/vision/analyze-frame \
+  -F "file=@sample-frame.jpg" \
+  -F "confidence=0.4"
+```
+
+Analyze a crosswalk frame:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/vision/analyze-crosswalk \
+  -F "file=@sample-frame.jpg" \
+  -F "confidence=0.4"
+```
+
+You can also use the helper script:
+
+```bash
+python scripts/test_vision_api.py --mode crosswalk sample-frame.jpg
+python scripts/test_vision_api.py
+```
+
+Responses include detected labels, bounding boxes, optional contours, area
+ratios, traversable-space grid scores, open-path direction, curb warning,
+crosswalk centering, confidence, and human-readable guidance text. The
+`traversable` field is the CurbDetector-style local navigation layer. It treats
+areas outside the selected traversable mask as unavailable space, so it does not
+need object-specific obstacle classes such as people, chairs, or strollers.
+
+Important response fields:
+- `traversable.best_direction`: `left`, `slight_left`, `center`,
+  `slight_right`, `right`, or `stop`
+- `traversable.raw_scores`: per-cell traversable pixel ratio for the scan grid
+- `traversable.adjusted_scores`: neighborhood-weighted scores
+- `traversable.scan_band`: the dynamic horizontal analysis band used for the
+  current frame
+- `curb_warning`: fan-zone curb warning, if a curb is close enough to matter
+- `guidance_text`: simple demo prompt such as `Open path ahead. Continue
+  forward.` or `No clear path detected. Stop and rescan.`
+
+The current implementation uses `sidewalk`, `path`, `walkway`, `trail`, and
+`crosswalk` masks as path-like traversable space. `road` is used only as a
+fallback when no path-like area is available, matching the existing prototype
+behavior.
+
+### Vision Test in the app
+
+The frontend includes a minimal development panel for periodic live camera frame
+analysis. Open the app, tap **More**, then tap **Vision Test**. The panel is not
+shown by default and is separate from map routing, chat, GPS navigation, and the
+audio beacon.
+
+The panel:
+- asks for camera permission with `navigator.mediaDevices.getUserMedia`
+- prefers the rear camera with `facingMode: environment`
+- captures one JPEG frame every 1000 ms
+- skips capture while a previous request is still pending
+- calls `/api/vision/analyze-frame` in Open path mode
+- calls `/api/vision/analyze-crosswalk` in Crosswalk mode
+- uses a camera-first CurbDetector-style view with a transparent SVG overlay:
+  path/traversable grid tinting, 3x7 scan grid, green selected corridor,
+  LEFT/CENTER/RIGHT/STOP label, detection bounding boxes, curb warning marker,
+  and parking-assist fan zones
+- moves labels, API URLs, raw/adjusted grid scores, request status, response
+  time, and JSON summary into a collapsed **Debug details** section
+- includes an optional **Feedback Off/On** control for a frontend-only
+  direction-aware audio/haptic prototype
+
+It also includes the on-screen warning:
+
+```text
+Prototype only. Not for real navigation or safety-critical use.
+```
+
+The Vision Test feedback prototype is isolated from the route audio beacon. It
+uses Web Audio API tones with simple stereo panning when available and
+`navigator.vibrate` for important changes. Curb/no-path warnings repeat like
+parking-assist beeps: high severity or near-zone warnings beep faster, medium
+warnings beep more slowly, and left/right open-path guidance uses short panned
+directional cues. It is off by default so it does not interfere with map
+navigation or the existing Soundscape/audio beacon. External haptic hardware and
+MQTT are not supported. Speech is intentionally disabled in Vision Test for now
+so it does not interfere with the existing navigation audio beacon.
+
+### Future Junchi/Yunchi model adapter
+
+Keep new model files under:
+
+```
+backend/app/models/vision/
+```
+
+The current YOLO wrapper produces a dictionary of union masks keyed by semantic
+label. The traversable-space analyzer is model-agnostic and expects the same
+shape:
+
+```python
+{
+    "sidewalk": sidewalk_mask,
+    "crosswalk": crosswalk_mask,
+    "road": road_mask,
+    "curb_down": curb_down_mask,
+    "curb_up": curb_up_mask,
+}
+```
+
+Each mask can be any binary or confidence-like array that OpenCV can resize to
+the input frame size. To plug in a future Junchi/Yunchi model, add a new mask
+provider service beside `curb_detection.py`, convert its segmentation output to
+that label-keyed mask dictionary, and reuse
+`backend/app/services/vision/traversable_space.py` for scoring. The existing API
+response can stay stable while the model provider changes underneath.
+
+#### Real iPhone testing
+
+1. Start the backend on your Mac:
+   ```bash
+   cd backend
+   source .venv/bin/activate
+   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   ```
+2. Confirm from the Mac:
+   ```bash
+   curl http://127.0.0.1:8000/api/vision/health
+   ```
+3. Find your Mac LAN IP, then build the iOS web bundle with that API base:
+   ```bash
+   cd frontend
+   VITE_API_BASE_URL=http://192.168.x.x:8000 npm run build
+   npx cap sync ios
+   npx cap open ios
+   ```
+   The frontend normalizes this backend origin to the app's `/api` routes. In
+   Vision Test, the panel shows the configured API base and the full request URL
+   so you can confirm the installed iOS build is pointing at your Mac.
+4. In Xcode, run on a real iPhone on the same Wi-Fi network.
+5. In the app, tap **More** → **Vision Test** → **Start CV**.
+
+The iOS Simulator should build and show the panel, but camera behavior may be
+limited depending on the simulator/device setup.
+
+For local development, `frontend/ios/App/App/Info.plist` allows local HTTP
+requests from the Capacitor WebView so a real iPhone can call the backend on
+your Mac LAN IP. Keep that App Transport Security setting as development-only
+unless the backend is moved to HTTPS.
+
+Current limitations:
+- periodic frame analysis only, not high-FPS video streaming
+- prototype testing only, not production safety guidance
+- no WebSocket video streaming
+- no Jetson/GStreamer capture
+- no MQTT or external haptic hardware
+- speech output from the CV panel is future work
 
 ## Docker
 

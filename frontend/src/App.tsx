@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import ChatPanel from "./components/ChatPanel";
 import Legend from "./components/Legend";
 import MapView from "./components/MapView";
-import OriginalVisionPanel from "./components/OriginalVisionPanel";
 import RoutePanel from "./components/RoutePanel";
 import TopBar from "./components/TopBar";
+import VisionPanel from "./components/VisionPanel";
 import { fetchEdges, fetchNodes, fetchRoute, sendChat } from "./lib/api";
 import { AudioBeaconEngine } from "./lib/audio";
 import {
@@ -343,6 +343,7 @@ export default function App() {
   const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
   const [navigationPrompt, setNavigationPrompt] = useState("");
   const [appStatus, setAppStatus] = useState("Search a place, tap the map for start, or ask for the nearest restroom.");
+  const [visionTestOpen, setVisionTestOpen] = useState(false);
 
   const startSelectionRef = useRef<RouteSelection | null>(null);
   const endSelectionRef = useRef<RouteSelection | null>(null);
@@ -1049,6 +1050,7 @@ export default function App() {
           onStopNavigation={() => stopNavigation()}
           onToggleVoice={handleToggleVoice}
           onToggleGps={handleToggleGps}
+          onOpenVisionTest={() => setVisionTestOpen(true)}
         />
         <MapView
           edges={edges}
@@ -1079,7 +1081,6 @@ export default function App() {
           onStopSpeaking={handleStopSpeaking}
           onReset={resetRoute}
         />
-        <OriginalVisionPanel />
       </main>
 
       <ChatPanel
@@ -1089,6 +1090,7 @@ export default function App() {
         onSend={handleSend}
         onQuickCommand={handleQuickCommand}
       />
+      {visionTestOpen && <VisionPanel open={visionTestOpen} onClose={() => setVisionTestOpen(false)} />}
     </div>
   );
 }

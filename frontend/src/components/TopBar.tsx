@@ -20,6 +20,7 @@ type Props = {
   onStopNavigation: () => void;
   onToggleVoice: () => void;
   onToggleGps: () => void;
+  onOpenVisionTest: () => void;
 };
 
 export default function TopBar({
@@ -39,7 +40,8 @@ export default function TopBar({
   onStartNavigation,
   onStopNavigation,
   onToggleVoice,
-  onToggleGps
+  onToggleGps,
+  onOpenVisionTest
 }: Props) {
   const [controlsOpen, setControlsOpen] = useState(false);
   const [resultsOpen, setResultsOpen] = useState(false);
@@ -108,6 +110,9 @@ export default function TopBar({
             {isSpeaking ? "Mute" : "Repeat"}
           </button>
         )}
+        <button type="button" onClick={onOpenVisionTest}>
+          Vision Test
+        </button>
       </div>}
 
       {results.length > 0 && (

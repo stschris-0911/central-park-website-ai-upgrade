@@ -7,3 +7,8 @@ node_modules/
 frontend/dist/
 frontend/.vite/
 backend/.pytest_cache/
+data/app_data/*.pkl
+data/app_data/*.geojson
+data/app_data/*.csv
+!data/app_data/README.md
+!data/app_data/app_manifest.example.json

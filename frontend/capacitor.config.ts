@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.tianshushi.centralparknavigator.dev',
+  appId: 'com.tianshu.centralparknavigator',
   appName: 'Central Park Navigator',
   webDir: 'dist'
 };
