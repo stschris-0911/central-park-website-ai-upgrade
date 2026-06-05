@@ -24,6 +24,7 @@ export type RouteRequest = {
   end_node_id?: string;
   start_point?: RoutePoint;
   end_point?: RoutePoint;
+  strict_walkable?: boolean;
 };
 
 export type RouteEndpointInfo = {

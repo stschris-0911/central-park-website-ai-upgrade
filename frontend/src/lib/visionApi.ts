@@ -1,7 +1,82 @@
-import { API_BASE_URL, RAW_API_BASE_URL, apiUrl, displayRequestUrl } from "./apiBase";
+import { API_BASE_URL, RAW_API_BASE_URL, displayRequestUrl } from "./apiBase";
+import {
+  analyzeVisionBlobLocally,
+  getVisionEnginePreference,
+  isNativeLocalVisionCandidate,
+  type VisionEnginePreference
+} from "./localVision";
 
 export const VISION_API_BASE = API_BASE_URL;
 export const VISION_RAW_API_BASE = RAW_API_BASE_URL;
+export const VISION_API_BASE_STORAGE_KEY = "centralpark.visionApiBaseUrl";
+
+function stripTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function normalizeVisionApiBase(value: string): string {
+  let trimmed = value.trim();
+  if (!trimmed) return API_BASE_URL;
+  if (/^[\w.-]+(?::\d+)?(?:\/.*)?$/i.test(trimmed) && !trimmed.startsWith("/")) {
+    trimmed = `http://${trimmed}`;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    const url = new URL(trimmed);
+    if (url.pathname === "/" || url.pathname === "") {
+      url.pathname = "/api";
+    }
+    return stripTrailingSlash(url.toString());
+  }
+
+  return stripTrailingSlash(trimmed) || API_BASE_URL;
+}
+
+function readStoredVisionApiBase(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(VISION_API_BASE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function getVisionRawApiBase(): string {
+  const stored = readStoredVisionApiBase();
+  return stored && stored.trim() ? stored : RAW_API_BASE_URL;
+}
+
+export function getVisionApiBase(): string {
+  return normalizeVisionApiBase(getVisionRawApiBase());
+}
+
+export function saveVisionApiBase(value: string): string {
+  const normalized = normalizeVisionApiBase(value);
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(VISION_API_BASE_STORAGE_KEY, normalized);
+    } catch {
+      // Ignore storage failures; the caller can still use the default configured URL.
+    }
+  }
+  return normalized;
+}
+
+export function resetVisionApiBase(): string {
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(VISION_API_BASE_STORAGE_KEY);
+    } catch {
+      // Ignore storage failures and fall back to the built-in URL.
+    }
+  }
+  return getVisionApiBase();
+}
+
+function visionApiUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${getVisionApiBase()}${normalizedPath}`;
+}
 
 export type VisionMode = "open_path" | "crosswalk";
 
@@ -44,7 +119,7 @@ export type VisionHealth = {
 
 export function visionRequestInfo(mode: VisionMode): VisionRequestInfo {
   const endpoint = mode === "crosswalk" ? "analyze-crosswalk" : "analyze-frame";
-  const url = apiUrl(`/vision/${endpoint}`);
+  const url = visionApiUrl(`/vision/${endpoint}`);
   return {
     method: "POST",
     url,
@@ -53,7 +128,7 @@ export function visionRequestInfo(mode: VisionMode): VisionRequestInfo {
 }
 
 function visionHealthRequestInfo(): VisionRequestInfo {
-  const url = apiUrl("/vision/health");
+  const url = visionApiUrl("/vision/health");
   return {
     method: "GET",
     url,
@@ -153,6 +228,7 @@ export type VisionTraversable = {
 };
 
 export type VisionAnalysisResponse = {
+  engine?: "coreml" | "backend";
   mode: "open_path" | "crosswalk";
   image?: {
     width: number;
@@ -210,11 +286,37 @@ export async function analyzeVisionBlob(
   confidence = 0.4,
   filename = "frame.jpg"
 ): Promise<VisionAnalysisResponse> {
+  const engine = getVisionEnginePreference();
+  if (shouldTryLocalVision(engine)) {
+    try {
+      const localResult = await analyzeVisionBlobLocally(image, mode, confidence);
+      return { ...localResult, engine: localResult.engine ?? "coreml" };
+    } catch (err) {
+      if (engine === "local") {
+        throw err;
+      }
+      console.warn("Local Core ML vision failed; falling back to backend.", err);
+    }
+  }
+
+  return analyzeVisionBlobWithBackend(image, mode, confidence, filename);
+}
+
+function shouldTryLocalVision(engine: VisionEnginePreference): boolean {
+  return engine !== "backend" && isNativeLocalVisionCandidate();
+}
+
+async function analyzeVisionBlobWithBackend(
+  image: Blob,
+  mode: VisionMode,
+  confidence = 0.4,
+  filename = "frame.jpg"
+): Promise<VisionAnalysisResponse> {
   const form = new FormData();
   form.append("file", image, filename);
   form.append("confidence", String(confidence));
 
-  return fetchJson<VisionAnalysisResponse>(
+  const result = await fetchJson<VisionAnalysisResponse>(
     visionRequestInfo(mode),
     "Vision analysis failed",
     {
@@ -222,4 +324,5 @@ export async function analyzeVisionBlob(
       body: form
     }
   );
+  return { ...result, engine: result.engine ?? "backend" };
 }

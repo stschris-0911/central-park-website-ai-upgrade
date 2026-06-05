@@ -4,6 +4,7 @@ import math
 from typing import Any
 
 import networkx as nx
+from shapely.geometry import LineString, Point
 from pyproj import Transformer
 from shapely.ops import transform as shapely_transform
 
@@ -167,6 +168,74 @@ def _get_edge_attrs(data: Any) -> dict[str, Any] | None:
     return None
 
 
+def _truthy(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return bool(value)
+
+
+def _edge_length_m(edge_attrs: dict[str, Any], coords: list[tuple[float, float]] | None = None) -> float:
+    for key in ("length_m", "length"):
+        value = edge_attrs.get(key)
+        try:
+            length = float(value)
+            if length > 0:
+                return length
+        except Exception:
+            pass
+
+    line = coords or []
+    if len(line) >= 2:
+        return sum(_meters_from_lonlat(a, b) for a, b in zip(line[:-1], line[1:]))
+
+    return 1.0
+
+
+def _accessibility_weight(_u: Any, _v: Any, edge_attrs: dict[str, Any]) -> float:
+    """Prefer safer walkable paths over purely shortest paths."""
+    length_m = _edge_length_m(edge_attrs)
+    multiplier = 1.0
+    penalty_m = 0.0
+
+    if _truthy(edge_attrs.get("has_stairs")):
+        multiplier += 4.0
+        penalty_m += 80.0
+
+    near_crossing = _truthy(edge_attrs.get("near_road_crossing"))
+    signalized = _truthy(edge_attrs.get("has_signalized_crossing"))
+    if near_crossing and signalized:
+        multiplier += 0.2
+        penalty_m += 8.0
+    elif near_crossing:
+        multiplier += 0.8
+        penalty_m += 28.0
+
+    surface = str(edge_attrs.get("surface") or "").strip().lower()
+    if surface in {"gravel", "unpaved", "dirt", "grass", "ground", "earth", "sand"}:
+        multiplier += 0.55
+    elif surface in {"unknown", ""}:
+        multiplier += 0.08
+
+    try:
+        curvature = float(edge_attrs.get("curvature") or 0.0)
+        multiplier += min(0.25, max(0.0, curvature) * 0.08)
+    except Exception:
+        pass
+
+    try:
+        sinuosity = float(edge_attrs.get("sinuosity") or 1.0)
+        if sinuosity > 1:
+            multiplier += min(0.2, (sinuosity - 1.0) * 0.12)
+    except Exception:
+        pass
+
+    return max(0.1, length_m * multiplier + penalty_m)
+
+
 def _edge_coords_lonlat(edge_attrs: dict[str, Any], transformer=None) -> list[tuple[float, float]]:
     geom = edge_attrs.get("geometry")
     if geom is None:
@@ -180,6 +249,158 @@ def _edge_coords_lonlat(edge_attrs: dict[str, Any], transformer=None) -> list[tu
         return []
     except Exception:
         return []
+
+
+def _aligned_edge_coords_lonlat(graph, u, v, edge_attrs: dict[str, Any], transformer=None) -> list[tuple[float, float]]:
+    u_coord = _graph_node_lonlat(graph.nodes[u], transformer) if u in graph.nodes else None
+    v_coord = _graph_node_lonlat(graph.nodes[v], transformer) if v in graph.nodes else None
+    coords = _edge_coords_lonlat(edge_attrs, transformer)
+
+    if not coords and u_coord and v_coord:
+        return [u_coord, v_coord]
+
+    if not coords:
+        return []
+
+    if u_coord and v_coord:
+        forward = _meters_from_lonlat(coords[0], u_coord) + _meters_from_lonlat(coords[-1], v_coord)
+        reverse = _meters_from_lonlat(coords[0], v_coord) + _meters_from_lonlat(coords[-1], u_coord)
+        if reverse < forward:
+            coords = list(reversed(coords))
+
+    return coords
+
+
+def _append_coord(out: list[tuple[float, float]], point: tuple[float, float]) -> None:
+    if not out or _meters_from_lonlat(out[-1], point) > 0.05:
+        out.append(point)
+
+
+def _project_point_to_segment_lonlat(
+    point: tuple[float, float],
+    a: tuple[float, float],
+    b: tuple[float, float],
+) -> tuple[tuple[float, float], float, float]:
+    lat0 = math.radians((a[1] + b[1] + point[1]) / 3.0)
+    sx = 111320.0 * math.cos(lat0)
+    sy = 110540.0
+    ax, ay = a[0] * sx, a[1] * sy
+    bx, by = b[0] * sx, b[1] * sy
+    px, py = point[0] * sx, point[1] * sy
+    dx, dy = bx - ax, by - ay
+    denom = dx * dx + dy * dy
+    if denom <= 0:
+        return a, _meters_from_lonlat(point, a), 0.0
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / denom))
+    foot = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+    return foot, _meters_from_lonlat(point, foot), t
+
+
+def _nearest_graph_edge_location(graph, lon: float, lat: float, transformer=None):
+    point = (lon, lat)
+    best: dict[str, Any] | None = None
+
+    for u, v, attrs in graph.edges(data=True):
+        edge_attrs = _get_edge_attrs(attrs) or attrs
+        coords = _aligned_edge_coords_lonlat(graph, u, v, edge_attrs, transformer)
+        if len(coords) < 2:
+            continue
+
+        distance_from_u = 0.0
+        for segment_index, (a, b) in enumerate(zip(coords[:-1], coords[1:])):
+            segment_length = _meters_from_lonlat(a, b)
+            foot, off_m, t = _project_point_to_segment_lonlat(point, a, b)
+            along_m = distance_from_u + segment_length * t
+
+            if best is None or off_m < best["distance_m"]:
+                best = {
+                    "u": u,
+                    "v": v,
+                    "attrs": edge_attrs,
+                    "coords": coords,
+                    "foot": foot,
+                    "distance_m": off_m,
+                    "segment_index": segment_index,
+                    "along_m": along_m,
+                }
+
+            distance_from_u += segment_length
+
+    return best
+
+
+def _split_coords_at_foot(
+    coords: list[tuple[float, float]],
+    segment_index: int,
+    foot: tuple[float, float],
+) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+    to_u: list[tuple[float, float]] = []
+    for point in coords[: segment_index + 1]:
+        _append_coord(to_u, point)
+    _append_coord(to_u, foot)
+
+    to_v: list[tuple[float, float]] = [foot]
+    for point in coords[segment_index + 1 :]:
+        _append_coord(to_v, point)
+
+    return to_u, to_v
+
+
+def _line_string_from_coords(coords: list[tuple[float, float]]) -> LineString:
+    if len(coords) >= 2:
+        return LineString(coords)
+    if len(coords) == 1:
+        return LineString([coords[0], coords[0]])
+    return LineString([(0.0, 0.0), (0.0, 0.0)])
+
+
+def _add_virtual_snap_node(
+    graph,
+    lonlat: tuple[float, float],
+    label: str,
+    transformer=None,
+    max_snap_meters: float = 80.0,
+):
+    nearest = _nearest_graph_edge_location(graph, lonlat[0], lonlat[1], transformer)
+    if nearest is None or nearest["distance_m"] > max_snap_meters:
+        return None, None, float("inf")
+
+    virtual_id = f"virtual:{label}"
+    foot = nearest["foot"]
+    graph.add_node(
+        virtual_id,
+        lon=foot[0],
+        lat=foot[1],
+        geometry=Point(foot),
+        node_type="snap",
+        node_subtype="walkable_edge_projection",
+        name="Walkable path projection",
+    )
+
+    u = nearest["u"]
+    v = nearest["v"]
+    attrs = dict(nearest["attrs"])
+    to_u, to_v = _split_coords_at_foot(nearest["coords"], nearest["segment_index"], foot)
+    length_to_u = sum(_meters_from_lonlat(a, b) for a, b in zip(to_u[:-1], to_u[1:]))
+    length_to_v = sum(_meters_from_lonlat(a, b) for a, b in zip(to_v[:-1], to_v[1:]))
+
+    attrs_to_u = {
+        **attrs,
+        "edge_id": f"virtual:{label}:to:{u}",
+        "length_m": max(0.1, length_to_u),
+        "geometry": _line_string_from_coords(to_u),
+    }
+    attrs_to_v = {
+        **attrs,
+        "edge_id": f"virtual:{label}:to:{v}",
+        "length_m": max(0.1, length_to_v),
+        "geometry": _line_string_from_coords(to_v),
+    }
+
+    graph.add_edge(virtual_id, u, **attrs_to_u)
+    graph.add_edge(virtual_id, v, **attrs_to_v)
+
+    return virtual_id, foot, float(nearest["distance_m"])
 
 
 def _nearest_graph_node(graph, lon: float, lat: float, transformer=None):
@@ -397,17 +618,18 @@ def _zoo_filtered_graph(graph, transformer):
 
     edges_to_remove = []
 
-    for u, v, key, attrs in list(filtered.edges(keys=True, data=True)):
+    for u, v, attrs in list(filtered.edges(data=True)):
         u_coord = _graph_node_lonlat(filtered.nodes[u], transformer) if u in filtered.nodes else None
         v_coord = _graph_node_lonlat(filtered.nodes[v], transformer) if v in filtered.nodes else None
 
         if not u_coord or not v_coord:
             continue
 
-        segment = _edge_coords_lonlat(attrs, transformer) or [u_coord, v_coord]
+        edge_attrs = _get_edge_attrs(attrs) or attrs
+        segment = _edge_coords_lonlat(edge_attrs, transformer) or [u_coord, v_coord]
 
         if _line_touches_zoo_lonlat(segment):
-            edges_to_remove.append((u, v, key))
+            edges_to_remove.append((u, v))
 
     filtered.remove_edges_from(edges_to_remove)
 
@@ -421,6 +643,10 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         return None
 
     transformer = _make_transformer(_graph_crs(graph))
+    graph = _zoo_filtered_graph(graph, transformer)
+    if graph is None or len(graph.nodes) == 0:
+        return None
+
     # If the user selected an explicit graph node, do not silently snap it to
     # another node after Zoo/restricted-area filtering. Otherwise the route panel
     # may show N1417 while the blue line actually starts somewhere else.
@@ -431,8 +657,8 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         start_snap = start_lonlat
         start_snap_dist = 0.0
     else:
-        start_node, start_snap, start_snap_dist = _nearest_graph_node(
-            graph, start_lonlat[0], start_lonlat[1], transformer
+        start_node, start_snap, start_snap_dist = _add_virtual_snap_node(
+            graph, start_lonlat, "start", transformer
         )
 
     if end_info.node_id:
@@ -442,18 +668,18 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         end_snap = end_lonlat
         end_snap_dist = 0.0
     else:
-        end_node, end_snap, end_snap_dist = _nearest_graph_node(
-            graph, end_lonlat[0], end_lonlat[1], transformer
+        end_node, end_snap, end_snap_dist = _add_virtual_snap_node(
+            graph, end_lonlat, "end", transformer
         )
 
     if start_node is None or end_node is None:
         return None
 
     try:
-        path = nx.shortest_path(graph, source=start_node, target=end_node, weight="length_m")
+        path = nx.shortest_path(graph, source=start_node, target=end_node, weight=_accessibility_weight)
     except Exception:
         try:
-            path = nx.shortest_path(graph, source=start_node, target=end_node, weight="length")
+            path = nx.shortest_path(graph, source=start_node, target=end_node, weight="length_m")
         except Exception:
             return None
 
@@ -462,13 +688,15 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
     for u, v in zip(path[:-1], path[1:]):
         edge = _get_edge_attrs(graph.get_edge_data(u, v))
         if edge:
-            segment = _edge_coords_lonlat(edge, transformer)
+            segment = _aligned_edge_coords_lonlat(graph, u, v, edge, transformer)
             if segment:
                 if coords and coords[-1] == segment[0]:
                     coords.extend(segment[1:])
+                elif coords and coords[-1] == segment[-1]:
+                    coords.extend(list(reversed(segment[:-1])))
                 else:
                     coords.extend(segment)
-            total_m += float(edge.get("length_m") or edge.get("length") or 0.0)
+            total_m += _edge_length_m(edge, segment)
         if not coords:
             u_coord = _graph_node_lonlat(graph.nodes[u], transformer)
             v_coord = _graph_node_lonlat(graph.nodes[v], transformer)
@@ -495,7 +723,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         start_info = RouteEndpointInfo(
             kind="snapped_point",
             label=start_info.label,
-            description=f"Selected point snapped to nearest walkable graph node ({start_snap_dist:.0f} m).",
+            description=f"Selected point snapped to nearest walkable path ({start_snap_dist:.0f} m).",
             point=[start_snap[0], start_snap[1]],
             node_id=None,
         )
@@ -503,20 +731,10 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         end_info = RouteEndpointInfo(
             kind="snapped_point",
             label=end_info.label,
-            description=f"Selected point snapped to nearest walkable graph node ({end_snap_dist:.0f} m).",
+            description=f"Selected point snapped to nearest walkable path ({end_snap_dist:.0f} m).",
             point=[end_snap[0], end_snap[1]],
             node_id=None,
         )
-
-    # Force rendered geometry to begin/end at the requested endpoints.
-    # This prevents the route panel from showing N1417 while the blue line
-    # visually starts from the next path vertex.
-    if coords:
-        if _meters_from_lonlat(coords[0], start_lonlat) >= 0.5:
-            coords.insert(0, start_lonlat)
-
-        if _meters_from_lonlat(coords[-1], end_lonlat) >= 0.5:
-            coords.append(end_lonlat)
 
     if len(coords) < 2:
         return None
@@ -525,7 +743,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
     for a, b in zip(coords[:-1], coords[1:]):
         total_m += _meters_from_lonlat(a, b)
 
-    description = f"Route follows the walkable graph from {start_info.label} to {end_info.label}."
+    description = f"Route follows the accessibility-weighted walkable graph from {start_info.label} to {end_info.label}."
 
     return RouteResponse(
         mode="graph",

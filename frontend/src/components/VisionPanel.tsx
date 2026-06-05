@@ -1,21 +1,33 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  VISION_API_BASE,
-  VISION_RAW_API_BASE,
   VisionApiError,
   analyzeVisionBlob,
+  fetchVisionHealth,
+  getVisionApiBase,
+  getVisionRawApiBase,
+  resetVisionApiBase,
+  saveVisionApiBase,
   visionRequestInfo,
   type VisionAnalysisResponse,
   type VisionDetection,
   type VisionMode,
   type VisionRequestInfo
 } from "../lib/visionApi";
+import {
+  fetchLocalVisionHealth,
+  getVisionEnginePreference,
+  saveVisionEnginePreference,
+  type VisionEnginePreference
+} from "../lib/localVision";
+import type { NavigationFusionContext, VisionFusionPayload } from "../lib/navigationFusion";
 import { createVisionFeedbackController, type VisionFeedbackController } from "../lib/visionFeedback";
 import { canSpeak, speakText, stopSpeaking } from "../lib/speech";
 
 type Props = {
   open: boolean;
   onClose: () => void;
+  navigationContext?: NavigationFusionContext;
+  onVisionAnalysis?: (payload: VisionFusionPayload) => void;
 };
 
 type FrameSize = {
@@ -39,7 +51,8 @@ type VisionErrorDetails = {
   exception: string;
 };
 
-const FRAME_INTERVAL_MS = 1000;
+const FRAME_INTERVAL_MS = 1600;
+const CAPTURE_MAX_WIDTH = 416;
 const DEFAULT_FRAME: FrameSize = { width: 640, height: 480 };
 const DEFAULT_STAGE: FrameSize = { width: 360, height: 540 };
 const STOP_SMOOTHING_FRAMES = 3;
@@ -512,7 +525,7 @@ function debugJsonSummary(
   );
 }
 
-export default function VisionPanel({ open, onClose }: Props) {
+export default function VisionPanel({ open, onClose, navigationContext, onVisionAnalysis }: Props) {
   const [mode, setMode] = useState<VisionMode>("crosswalk");
   const [isRunning, setIsRunning] = useState(false);
   const [status, setStatus] = useState("Idle");
@@ -522,12 +535,19 @@ export default function VisionPanel({ open, onClose }: Props) {
   const [lastResponseMs, setLastResponseMs] = useState<number | null>(null);
   const [lastResponseAt, setLastResponseAt] = useState<string>("");
   const [requestInfo, setRequestInfo] = useState<VisionRequestInfo>(() => visionRequestInfo("crosswalk"));
-  const [feedbackEnabled, setFeedbackEnabled] = useState(false);
-  const [speechEnabled, setSpeechEnabled] = useState(false);
+  const [feedbackEnabled, setFeedbackEnabled] = useState(true);
+  const [speechEnabled, setSpeechEnabled] = useState(true);
   const [previewFrame, setPreviewFrame] = useState<FrameSize>(DEFAULT_FRAME);
   const [stageSize, setStageSize] = useState<FrameSize>(DEFAULT_STAGE);
   const [stopSmoothingCount, setStopSmoothingCount] = useState(0);
   const [pathUncertain, setPathUncertain] = useState(false);
+  const [apiBaseInput, setApiBaseInput] = useState(() => getVisionRawApiBase());
+  const [apiBase, setApiBase] = useState(() => getVisionApiBase());
+  const [rawApiBase, setRawApiBase] = useState(() => getVisionRawApiBase());
+  const [apiTestStatus, setApiTestStatus] = useState("");
+  const [enginePref, setEnginePref] = useState<VisionEnginePreference>(() => getVisionEnginePreference());
+  const [engineStatus, setEngineStatus] = useState("Auto uses iPhone Core ML when available.");
+  const [debugDetailsOpen, setDebugDetailsOpen] = useState(false);
 
   const stageRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -535,12 +555,16 @@ export default function VisionPanel({ open, onClose }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
   const pendingRef = useRef(false);
+  const latestFrameRequestedRef = useRef(false);
+  const visionRunTokenRef = useRef(0);
   const modeRef = useRef<VisionMode>(mode);
   const stopSmoothingRef = useRef(0);
-  const speechEnabledRef = useRef(false);
+  const speechEnabledRef = useRef(true);
   const lastSpeechKeyRef = useRef("");
   const lastSpeechAtRef = useRef(0);
   const feedbackRef = useRef<VisionFeedbackController | null>(null);
+  const navigationContextRef = useRef<NavigationFusionContext | undefined>(navigationContext);
+  const onVisionAnalysisRef = useRef<Props["onVisionAnalysis"]>(onVisionAnalysis);
   if (!feedbackRef.current) {
     feedbackRef.current = createVisionFeedbackController();
   }
@@ -558,6 +582,20 @@ export default function VisionPanel({ open, onClose }: Props) {
   useEffect(() => {
     speechEnabledRef.current = speechEnabled;
   }, [speechEnabled]);
+
+  useEffect(() => {
+    navigationContextRef.current = navigationContext;
+  }, [navigationContext]);
+
+  useEffect(() => {
+    onVisionAnalysisRef.current = onVisionAnalysis;
+  }, [onVisionAnalysis]);
+
+  useEffect(() => {
+    if (navigationContext?.routeRecovery.active) {
+      setMode("open_path");
+    }
+  }, [navigationContext?.routeRecovery.active]);
 
   useEffect(() => {
     if (!open) stopCv();
@@ -580,7 +618,9 @@ export default function VisionPanel({ open, onClose }: Props) {
 
   useEffect(() => {
     return () => {
-      stopSpeaking();
+      if (!onVisionAnalysisRef.current) {
+        stopSpeaking();
+      }
       void feedbackRef.current?.close();
     };
   }, []);
@@ -604,10 +644,82 @@ export default function VisionPanel({ open, onClose }: Props) {
       return;
     }
     setSpeechEnabled(nextEnabled);
-    if (!nextEnabled) {
+    if (!nextEnabled && !onVisionAnalysisRef.current) {
       stopSpeaking();
+    }
+    if (!nextEnabled) {
       lastSpeechKeyRef.current = "";
       lastSpeechAtRef.current = 0;
+    }
+  }
+
+  function refreshVisionApiBase() {
+    setApiBase(getVisionApiBase());
+    setRawApiBase(getVisionRawApiBase());
+    setRequestInfo(visionRequestInfo(modeRef.current));
+  }
+
+  function saveBackendUrl() {
+    const saved = saveVisionApiBase(apiBaseInput);
+    setApiBaseInput(saved);
+    refreshVisionApiBase();
+    setApiTestStatus(`Saved ${saved}`);
+  }
+
+  function resetBackendUrl() {
+    resetVisionApiBase();
+    const fallback = getVisionRawApiBase();
+    setApiBaseInput(fallback);
+    refreshVisionApiBase();
+    setApiTestStatus("Using build default.");
+  }
+
+  async function testBackendUrl() {
+    setApiTestStatus("Testing /api/vision/health...");
+    const saved = saveVisionApiBase(apiBaseInput);
+    setApiBaseInput(saved);
+    refreshVisionApiBase();
+    try {
+      const health = await fetchVisionHealth();
+      setApiTestStatus(`Connected: ${health.status}`);
+      setError("");
+      setErrorDetails(null);
+    } catch (err) {
+      const activeRequestInfo = visionRequestInfo(modeRef.current);
+      const details = getVisionErrorDetails(err, activeRequestInfo);
+      setApiTestStatus(`Failed: ${details.message}`);
+      setError(details.message);
+      setErrorDetails(details);
+    }
+  }
+
+  function selectVisionEngine(nextEngine: VisionEnginePreference) {
+    saveVisionEnginePreference(nextEngine);
+    setEnginePref(nextEngine);
+    setEngineStatus(
+      nextEngine === "local"
+        ? "Local Core ML only."
+        : nextEngine === "backend"
+          ? "Backend only."
+          : "Auto uses iPhone Core ML when available."
+    );
+  }
+
+  async function testLocalVision() {
+    setEngineStatus("Testing iPhone Core ML...");
+    try {
+      const health = await fetchLocalVisionHealth();
+      const models = Object.entries(health.models)
+        .map(([name, model]) => `${name}: ${model.exists ? "found" : "missing"}${model.loaded ? ", loaded" : ""}`)
+        .join(" · ");
+      setEngineStatus(`Core ML ${health.status}: ${models}`);
+      setError("");
+      setErrorDetails(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setEngineStatus(`Core ML unavailable: ${message}`);
+      setError(message);
+      setErrorDetails(null);
     }
   }
 
@@ -629,7 +741,9 @@ export default function VisionPanel({ open, onClose }: Props) {
     setError("");
     setErrorDetails(null);
     setStatus("Requesting camera");
-    if (feedbackEnabled) {
+    const shouldEnableFeedback = feedbackEnabled || Boolean(navigationContextRef.current?.isNavigating);
+    if (shouldEnableFeedback) {
+      setFeedbackEnabled(true);
       void feedbackRef.current?.setEnabled(true);
     }
 
@@ -659,8 +773,10 @@ export default function VisionPanel({ open, onClose }: Props) {
 
       setIsRunning(true);
       setStatus("Running");
-      timerRef.current = window.setInterval(captureAndAnalyze, FRAME_INTERVAL_MS);
-      window.setTimeout(captureAndAnalyze, 250);
+      visionRunTokenRef.current += 1;
+      latestFrameRequestedRef.current = false;
+      timerRef.current = window.setInterval(requestLatestFrameAnalysis, FRAME_INTERVAL_MS);
+      window.setTimeout(requestLatestFrameAnalysis, 250);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Camera permission failed.");
       setStatus("Camera error");
@@ -682,9 +798,13 @@ export default function VisionPanel({ open, onClose }: Props) {
       videoRef.current.srcObject = null;
     }
 
+    visionRunTokenRef.current += 1;
     pendingRef.current = false;
+    latestFrameRequestedRef.current = false;
     feedbackRef.current?.reset();
-    stopSpeaking();
+    if (!onVisionAnalysisRef.current) {
+      stopSpeaking();
+    }
     lastSpeechKeyRef.current = "";
     lastSpeechAtRef.current = 0;
     stopSmoothingRef.current = 0;
@@ -696,22 +816,28 @@ export default function VisionPanel({ open, onClose }: Props) {
     }
   }
 
-  async function captureAndAnalyze() {
-    if (pendingRef.current) return;
+  function requestLatestFrameAnalysis() {
+    latestFrameRequestedRef.current = true;
+    void drainLatestFrameAnalysis();
+  }
+
+  async function drainLatestFrameAnalysis() {
+    if (pendingRef.current || !latestFrameRequestedRef.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) return;
+    if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0 || !streamRef.current) return;
 
+    const runToken = visionRunTokenRef.current;
     pendingRef.current = true;
+    latestFrameRequestedRef.current = false;
     setStatus("Analyzing frame");
     updatePreviewFrame();
     const activeRequestInfo = visionRequestInfo(modeRef.current);
     setRequestInfo(activeRequestInfo);
 
     try {
-      const maxWidth = 640;
-      const scale = Math.min(1, maxWidth / video.videoWidth);
+      const scale = Math.min(1, CAPTURE_MAX_WIDTH / video.videoWidth);
       canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
       canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
       const ctx = canvas.getContext("2d");
@@ -722,6 +848,9 @@ export default function VisionPanel({ open, onClose }: Props) {
       const started = performance.now();
       const response = await analyzeVisionBlob(blob, modeRef.current, 0.4, "camera-frame.jpg");
       const elapsed = Math.round(performance.now() - started);
+      if (runToken !== visionRunTokenRef.current || !streamRef.current) {
+        return;
+      }
       const smoothed = smoothStopResult(response, stopSmoothingRef.current);
       stopSmoothingRef.current = smoothed.stopCount;
 
@@ -730,18 +859,36 @@ export default function VisionPanel({ open, onClose }: Props) {
       setLastResponseAt(new Date().toLocaleTimeString());
       setStopSmoothingCount(smoothed.stopCount);
       setPathUncertain(smoothed.uncertain);
+      setEngineStatus(response.engine === "coreml" ? "Running on iPhone Core ML." : "Running on backend.");
       setStatus("Running");
       setError("");
       setErrorDetails(null);
       feedbackRef.current?.notify(smoothed.result);
-      maybeSpeak(smoothed.result, smoothed.uncertain);
+      onVisionAnalysisRef.current?.({
+        result: smoothed.result,
+        uncertain: smoothed.uncertain,
+        speechEnabled: speechEnabledRef.current,
+        feedbackEnabled,
+        timestamp: Date.now()
+      });
+      if (!onVisionAnalysisRef.current) {
+        maybeSpeak(smoothed.result, smoothed.uncertain);
+      }
     } catch (err) {
+      if (runToken !== visionRunTokenRef.current || !streamRef.current) {
+        return;
+      }
       const details = getVisionErrorDetails(err, activeRequestInfo);
       setError(details.message);
       setErrorDetails(details);
       setStatus("Request failed");
     } finally {
-      pendingRef.current = false;
+      if (runToken === visionRunTokenRef.current) {
+        pendingRef.current = false;
+        if (latestFrameRequestedRef.current && streamRef.current) {
+          void drainLatestFrameAnalysis();
+        }
+      }
     }
   }
 
@@ -750,8 +897,8 @@ export default function VisionPanel({ open, onClose }: Props) {
       <section className="vision-card vision-card--camera-first">
         <div className="vision-card__header">
           <div>
-            <h3>Vision Test</h3>
-            <p>Prototype only. Not for real navigation or safety-critical use.</p>
+            <h3>Vision</h3>
+            <p>{navigationContext?.isNavigating ? "Camera guidance fused with active map navigation." : "Camera guidance can run alongside a prepared map route."}</p>
           </div>
           <button type="button" className="vision-card__close" onClick={() => { stopCv(); onClose(); }}>
             Close
@@ -772,6 +919,19 @@ export default function VisionPanel({ open, onClose }: Props) {
             <strong>{directionLabel(result)}</strong>
             <span>{result?.guidance_text || "Start CV to analyze the live camera view."}</span>
           </div>
+          {navigationContext && (
+            <div className="vision-fusion-strip">
+              <strong>{navigationContext.isNavigating ? "Map + Vision" : "Vision ready"}</strong>
+              <span>
+                {navigationContext.routeRecovery.active
+                  ? navigationContext.fusionStatus ||
+                    `Off walkable path. Vision is guiding you back.`
+                  : navigationContext.fusionStatus ||
+                  navigationContext.navigationPrompt ||
+                    (navigationContext.hasRoute ? "Route ready. Start navigation when ready." : "Create a route on the map first.")}
+              </span>
+            </div>
+          )}
           <div className="vision-status-pill">{status}</div>
         </div>
         <canvas ref={canvasRef} hidden />
@@ -783,6 +943,24 @@ export default function VisionPanel({ open, onClose }: Props) {
           <button type="button" aria-pressed={mode === "open_path"} onClick={() => setMode("open_path")}>
             Open path
           </button>
+        </div>
+
+        <div className="vision-card__engine">
+          <div className="vision-card__engine-row" role="group" aria-label="Vision engine">
+            <button type="button" aria-pressed={enginePref === "auto"} onClick={() => selectVisionEngine("auto")}>
+              Auto
+            </button>
+            <button type="button" aria-pressed={enginePref === "local"} onClick={() => selectVisionEngine("local")}>
+              Local Core ML
+            </button>
+            <button type="button" aria-pressed={enginePref === "backend"} onClick={() => selectVisionEngine("backend")}>
+              Backend
+            </button>
+            <button type="button" onClick={testLocalVision}>
+              Test Local
+            </button>
+          </div>
+          <span>{engineStatus}</span>
         </div>
 
         <div className="vision-card__actions">
@@ -810,9 +988,33 @@ export default function VisionPanel({ open, onClose }: Props) {
           </button>
         </div>
 
+        <div className="vision-card__backend">
+          <label htmlFor="vision-backend-url">Backend URL</label>
+          <div className="vision-card__backend-row">
+            <input
+              id="vision-backend-url"
+              type="url"
+              value={apiBaseInput}
+              placeholder="http://10.20.102.114:8000"
+              onChange={(event) => setApiBaseInput(event.target.value)}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button type="button" onClick={saveBackendUrl}>Save</button>
+            <button type="button" onClick={testBackendUrl}>Test</button>
+            <button type="button" onClick={resetBackendUrl}>Reset</button>
+          </div>
+          {apiTestStatus && <span>{apiTestStatus}</span>}
+        </div>
+
         {error && <p className="vision-card__error">{error}</p>}
 
-        <details className="vision-card__details">
+        <details
+          className="vision-card__details"
+          open={debugDetailsOpen}
+          onToggle={(event) => setDebugDetailsOpen(event.currentTarget.open)}
+        >
           <summary>Debug details</summary>
           <div className="vision-card__result" aria-live="polite">
             <dl>
@@ -825,12 +1027,16 @@ export default function VisionPanel({ open, onClose }: Props) {
                 <dd>{lastResponseMs !== null ? `${lastResponseMs} ms · ${lastResponseAt}` : "None"}</dd>
               </div>
               <div>
+                <dt>Engine</dt>
+                <dd>{result?.engine ?? enginePref}</dd>
+              </div>
+              <div>
                 <dt>API Base</dt>
-                <dd className="vision-card__url" title={VISION_API_BASE}>{VISION_API_BASE}</dd>
+                <dd className="vision-card__url" title={apiBase}>{apiBase}</dd>
               </div>
               <div>
                 <dt>Configured</dt>
-                <dd className="vision-card__url" title={VISION_RAW_API_BASE}>{VISION_RAW_API_BASE}</dd>
+                <dd className="vision-card__url" title={rawApiBase}>{rawApiBase}</dd>
               </div>
               <div>
                 <dt>Request</dt>
@@ -875,14 +1081,16 @@ export default function VisionPanel({ open, onClose }: Props) {
                 <dd>{pct(result?.areas.sidewalk)}</dd>
               </div>
             </dl>
-            {result?.traversable && (
+            {debugDetailsOpen && result?.traversable && (
               <div className="vision-card__scores">
                 <strong>Traversable-space grid</strong>
                 <ScoreGrid title="Raw" scores={result.traversable.raw_scores} bestColumn={result.traversable.best_column} />
                 <ScoreGrid title="Adjusted" scores={result.traversable.adjusted_scores} bestColumn={result.traversable.best_column} />
               </div>
             )}
-            <pre className="vision-card__json">{debugJsonSummary(result, stopSmoothingCount, pathUncertain, feedbackEnabled, speechEnabled)}</pre>
+            {debugDetailsOpen && (
+              <pre className="vision-card__json">{debugJsonSummary(result, stopSmoothingCount, pathUncertain, feedbackEnabled, speechEnabled)}</pre>
+            )}
             {errorDetails && (
               <div className="vision-card__debug" role="alert">
                 <strong>Last request error</strong>

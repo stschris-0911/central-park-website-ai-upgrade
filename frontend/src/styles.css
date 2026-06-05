@@ -381,6 +381,36 @@ input:focus-visible {
   border: 1px solid rgba(254, 202, 202, 0.9);
 }
 
+.vision-fusion-strip {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 82px;
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid rgba(147, 197, 253, 0.72);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.76);
+  color: #eff6ff;
+  backdrop-filter: blur(6px);
+}
+
+.vision-fusion-strip strong {
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.vision-fusion-strip span {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .vision-status-pill {
   position: absolute;
   top: 10px;
@@ -414,6 +444,38 @@ input:focus-visible {
   color: #ffffff;
 }
 
+.vision-card__engine {
+  display: grid;
+  gap: 6px;
+}
+
+.vision-card__engine-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.vision-card__engine button {
+  min-height: 38px;
+  padding: 0 8px;
+  background: #e5e7eb;
+  color: #111827;
+  font-size: 12px;
+}
+
+.vision-card__engine button[aria-pressed="true"] {
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.vision-card__engine span {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .vision-card__actions {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -441,6 +503,59 @@ input:focus-visible {
 .vision-card__speech[aria-pressed="true"] {
   background: #166534;
   color: #ffffff;
+}
+
+.vision-card__backend {
+  display: grid;
+  gap: 8px;
+}
+
+.vision-card__backend label {
+  color: #e5e7eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.vision-card__backend-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, minmax(58px, auto));
+  gap: 8px;
+}
+
+.vision-card__backend input {
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #f8fafc;
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.vision-card__backend button {
+  min-height: 40px;
+  padding: 0 10px;
+  background: #e5e7eb;
+  color: #111827;
+  font-size: 12px;
+}
+
+.vision-card__backend span {
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+  .vision-card__backend-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .vision-card__backend input {
+    grid-column: 1 / -1;
+  }
 }
 
 .vision-card__analyze:disabled,
@@ -683,12 +798,93 @@ input:focus-visible {
   background: #1d4ed8;
 }
 
+.route-card__audio-beacon {
+  background: #92400e;
+}
+
+.route-card__audio-beacon[aria-pressed="false"] {
+  background: #e5e7eb;
+  color: #111827;
+}
+
 .route-card__start-nav {
   background: #166534;
 }
 
 .route-card__stop-nav {
   background: #b91c1c;
+}
+
+.audio-beacon-debug {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.audio-beacon-debug__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.audio-beacon-debug__header span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.audio-beacon-debug__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 10px;
+  margin: 0;
+}
+
+.audio-beacon-debug__grid div {
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.audio-beacon-debug__grid dt {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.audio-beacon-debug__grid dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #0f172a;
+  font-weight: 900;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-beacon-debug__tests {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.audio-beacon-debug__tests button {
+  min-height: 36px;
+  padding: 0 8px;
+  background: #334155;
+  font-size: 12px;
 }
 
 .route-card--half {

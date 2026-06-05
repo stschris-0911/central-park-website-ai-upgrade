@@ -1,15 +1,24 @@
 import type { LatLon } from "./beacon";
+import {
+  canUseNativeHighAccuracyLocation,
+  getNativeCurrentPosition,
+  startNativeHighAccuracyLocation,
+  type NativeLocationFix
+} from "./highAccuracyLocation";
 
 export type PositionFix = {
   point: LatLon;
   accuracyMeters: number | null;
   speedMetersPerSecond: number | null;
   courseDegrees: number | null;
+  timestampMs: number;
+  source: "ios-corelocation" | "web-geolocation" | "manual";
+  precise?: boolean;
 };
 
 export type HeadingFix = {
   headingDegrees: number;
-  source: "compass" | "gps-course";
+  source: "gps-course";
 };
 
 type SensorCallbacks = {
@@ -18,99 +27,96 @@ type SensorCallbacks = {
   onError: (message: string) => void;
 };
 
-export async function requestOrientationPermission(): Promise<boolean> {
-  const eventCtor = (window as unknown as {
-    DeviceOrientationEvent?: typeof DeviceOrientationEvent & {
-      requestPermission?: () => Promise<"granted" | "denied">;
-    };
-  }).DeviceOrientationEvent;
-
-  if (!eventCtor) return false;
-  if (typeof eventCtor.requestPermission === "function") {
-    try {
-      return (await eventCtor.requestPermission()) === "granted";
-    } catch {
-      return false;
-    }
-  }
-
-  return true;
+function finiteOrNull(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-function headingFromOrientation(event: DeviceOrientationEvent): number | null {
-  const iosHeading = (event as unknown as { webkitCompassHeading?: number }).webkitCompassHeading;
-  if (typeof iosHeading === "number" && Number.isFinite(iosHeading)) {
-    return iosHeading;
-  }
+function positionFixFromNative(fix: NativeLocationFix): PositionFix {
+  return {
+    point: [fix.latitude, fix.longitude],
+    accuracyMeters: finiteOrNull(fix.accuracyMeters),
+    speedMetersPerSecond: finiteOrNull(fix.speedMetersPerSecond),
+    courseDegrees: finiteOrNull(fix.courseDegrees),
+    timestampMs: finiteOrNull(fix.timestampMs) ?? Date.now(),
+    source: "ios-corelocation",
+    precise: fix.precise
+  };
+}
 
-  if (typeof event.alpha === "number" && Number.isFinite(event.alpha)) {
-    return (360 - event.alpha) % 360;
-  }
+function positionFixFromWeb(position: GeolocationPosition): PositionFix {
+  return {
+    point: [position.coords.latitude, position.coords.longitude],
+    accuracyMeters: finiteOrNull(position.coords.accuracy),
+    speedMetersPerSecond: finiteOrNull(position.coords.speed),
+    courseDegrees: finiteOrNull(position.coords.heading),
+    timestampMs: position.timestamp || Date.now(),
+    source: "web-geolocation"
+  };
+}
 
-  return null;
+function reportGpsCourse(callbacks: SensorCallbacks, fix: PositionFix) {
+  if (
+    fix.courseDegrees !== null &&
+    fix.speedMetersPerSecond !== null &&
+    fix.speedMetersPerSecond >= 0.7
+  ) {
+    callbacks.onHeading({ headingDegrees: fix.courseDegrees, source: "gps-course" });
+  }
 }
 
 export async function startNavigationSensors(callbacks: SensorCallbacks): Promise<() => void> {
-  const canUseOrientation = await requestOrientationPermission();
-
-  const orientationListener = (event: DeviceOrientationEvent) => {
-    const headingDegrees = headingFromOrientation(event);
-    if (headingDegrees !== null) {
-      callbacks.onHeading({ headingDegrees, source: "compass" });
-    }
-  };
-
-  if (canUseOrientation) {
-    window.addEventListener(
-      "deviceorientationabsolute" as keyof WindowEventMap,
-      orientationListener as EventListener
-    );
-    window.addEventListener("deviceorientation", orientationListener);
-  }
-
+  let nativeStop: (() => void) | null = null;
   let watchId: number | null = null;
-  if (!navigator.geolocation) {
+
+  if (canUseNativeHighAccuracyLocation()) {
+    try {
+      nativeStop = await startNativeHighAccuracyLocation(
+        (nativeFix) => {
+          const fix = positionFixFromNative(nativeFix);
+          callbacks.onPosition(fix);
+          reportGpsCourse(callbacks, fix);
+        },
+        callbacks.onError
+      );
+    } catch (error) {
+      throw error;
+    }
+  } else if (!navigator.geolocation) {
     callbacks.onError("Location is not available on this device.");
   } else {
     watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const point: LatLon = [position.coords.latitude, position.coords.longitude];
-        const courseDegrees =
-          typeof position.coords.heading === "number" && Number.isFinite(position.coords.heading)
-            ? position.coords.heading
-            : null;
-        const speedMetersPerSecond =
-          typeof position.coords.speed === "number" && Number.isFinite(position.coords.speed)
-            ? position.coords.speed
-            : null;
-
-        callbacks.onPosition({
-          point,
-          accuracyMeters:
-            typeof position.coords.accuracy === "number" && Number.isFinite(position.coords.accuracy)
-              ? position.coords.accuracy
-              : null,
-          speedMetersPerSecond,
-          courseDegrees
-        });
-
-        if (courseDegrees !== null && speedMetersPerSecond !== null && speedMetersPerSecond >= 1) {
-          callbacks.onHeading({ headingDegrees: courseDegrees, source: "gps-course" });
-        }
+        const fix = positionFixFromWeb(position);
+        callbacks.onPosition(fix);
+        reportGpsCourse(callbacks, fix);
       },
       (error) => callbacks.onError(error.message || "Location permission was denied."),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 1000 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 500 }
     );
   }
 
   return () => {
-    window.removeEventListener(
-      "deviceorientationabsolute" as keyof WindowEventMap,
-      orientationListener as EventListener
-    );
-    window.removeEventListener("deviceorientation", orientationListener);
+    nativeStop?.();
     if (watchId !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchId);
     }
   };
+}
+
+export async function getCurrentPositionFix(timeoutMs = 10000): Promise<PositionFix> {
+  if (canUseNativeHighAccuracyLocation()) {
+    return positionFixFromNative(await getNativeCurrentPosition(timeoutMs));
+  }
+
+  if (!navigator.geolocation) {
+    throw new Error("Location is not available on this device.");
+  }
+
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve(positionFixFromWeb(position)),
+      (error) => reject(new Error(error.message || "Location permission was denied.")),
+      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 500 }
+    );
+  });
 }

@@ -32,10 +32,11 @@ In Xcode:
 The current production build uses:
 
 ```bash
-VITE_API_BASE=https://central-park-website-ai-upgrade.onrender.com/api
+VITE_API_BASE_URL=https://central-park-website-ai-upgrade.onrender.com/api
 ```
 
-So testers do not need to run the backend if that deployed API is online.
+Vision Test can also override this at runtime from the app, so you do not need
+to rebuild every time your Mac backend URL changes.
 
 ## If Testing With A Local Backend
 
@@ -62,8 +63,35 @@ open ios/App/App.xcodeproj
 For a real iPhone using the local backend, replace `127.0.0.1` with the Mac's local network IP address, for example:
 
 ```bash
-VITE_API_BASE=http://192.168.1.23:8000/api
+VITE_API_BASE_URL=http://192.168.1.23:8000/api
 ```
+
+## If Testing Away From The Mac Wi-Fi
+
+The iPhone cannot reach `127.0.0.1` or `192.168.x.x` when it is away from the
+same network. To keep the backend on your Mac and test from anywhere, expose the
+Mac backend through a temporary HTTPS tunnel.
+
+Start the backend on the Mac:
+
+```bash
+./scripts/start_home_vision_backend.sh
+```
+
+Start a Cloudflare Tunnel in a second terminal:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8000
+```
+
+Copy the generated `https://...trycloudflare.com` URL. In the app, open
+**More** → **Vision Test**, paste that URL into **Backend URL**, then tap
+**Save** and **Test**. Vision requests will use the saved tunnel URL from
+localStorage and fall back to `VITE_API_BASE_URL` when reset.
+
+For testing from any network, keep both Mac terminal windows open, keep the Mac
+awake, and keep the tunnel URL active. A quick Cloudflare Tunnel URL can change
+after restart; use a named tunnel or reserved domain when you need a stable URL.
 
 ## Option 2: Share With Non-Developer Testers
 

@@ -180,6 +180,69 @@ The current implementation uses `sidewalk`, `path`, `walkway`, `trail`, and
 fallback when no path-like area is available, matching the existing prototype
 behavior.
 
+### iPhone offline Core ML vision
+
+The iOS app now includes an experimental local Core ML vision path. The YOLO
+segmentation weights were exported from:
+
+```
+backend/app/models/vision/best.pt
+backend/app/models/vision/crosswalk.pt
+```
+
+into:
+
+```
+frontend/public/vision_coreml/best.mlpackage
+frontend/public/vision_coreml/crosswalk.mlpackage
+```
+
+`npx cap sync ios` copies those model packages into the iOS bundle under:
+
+```
+frontend/ios/App/App/public/vision_coreml/
+```
+
+The local bridge lives in:
+
+```
+frontend/ios/App/CapApp-SPM/Sources/CapApp-SPM/LocalVisionPlugin.swift
+frontend/ios/App/App/MainViewController.swift
+frontend/src/lib/localVision.ts
+```
+
+The app's Vision Test panel has an engine selector:
+
+- `Auto`: use iPhone Core ML on iOS and fall back to the backend if local
+  inference fails
+- `Local Core ML`: force offline iPhone inference only
+- `Backend`: use the FastAPI backend
+
+The local Core ML path runs the YOLO segmentation model on the iPhone, performs
+NMS and mask reconstruction in Swift, then applies the same style of
+traversable-space grid scoring, curb fan-zone warning, and crosswalk centering
+used by the backend prototype. It does not require Render, a Mac backend, or
+network access for the Vision Test camera analysis.
+
+To regenerate the Core ML files after replacing the `.pt` weights:
+
+```bash
+/opt/anaconda3/bin/yolo export model=backend/app/models/vision/best.pt format=coreml imgsz=640 nms=False exist_ok=True
+/opt/anaconda3/bin/yolo export model=backend/app/models/vision/crosswalk.pt format=coreml imgsz=640 nms=False exist_ok=True
+cp -R backend/app/models/vision/best.mlpackage frontend/public/vision_coreml/
+cp -R backend/app/models/vision/crosswalk.mlpackage frontend/public/vision_coreml/
+cd frontend
+npm run build
+npx cap sync ios
+```
+
+For cross-platform work, ONNX Runtime can be evaluated later as a shared
+iOS/Android inference layer. This iOS implementation uses Core ML first because
+it is Apple's native offline inference path and integrates directly with Xcode.
+See `MOBILE_VISION_DEPLOYMENT.md` for the meeting-aligned deployment notes,
+including Core ML, ONNX Runtime, quantization, and future pedestrian signal
+model integration.
+
 ### Vision Test in the app
 
 The frontend includes a minimal development panel for periodic live camera frame
@@ -267,11 +330,34 @@ response can stay stable while the model provider changes underneath.
    npx cap sync ios
    npx cap open ios
    ```
-   The frontend normalizes this backend origin to the app's `/api` routes. In
-   Vision Test, the panel shows the configured API base and the full request URL
-   so you can confirm the installed iOS build is pointing at your Mac.
+   The frontend normalizes this backend origin to the app's `/api` routes.
+   Vision Test also has a **Backend URL** field that can override the build-time
+   API base at runtime, store it in `localStorage`, and test `/api/vision/health`.
 4. In Xcode, run on a real iPhone on the same Wi-Fi network.
 5. In the app, tap **More** → **Vision Test** → **Start CV**.
+
+#### Real iPhone testing away from the Mac Wi-Fi
+
+If the backend should stay on your Mac but the iPhone is not on the same local
+network, expose the Mac backend through a temporary HTTPS tunnel.
+
+1. Start the backend locally:
+   ```bash
+   ./scripts/start_home_vision_backend.sh
+   ```
+2. In a second terminal, start Cloudflare Tunnel:
+   ```bash
+   cloudflared tunnel --url http://127.0.0.1:8000
+   ```
+3. Copy the generated `https://...trycloudflare.com` URL.
+4. In the app, open **More** → **Vision Test**, paste the tunnel URL into
+   **Backend URL**, tap **Save**, then tap **Test**. If health returns `ready`,
+   **Start CV** will use the Mac backend through the tunnel.
+
+For "Mac at home, iPhone anywhere" testing, keep the Mac awake and leave both
+the backend and tunnel terminals running. Quick tunnel URLs can change after a
+restart; use a named Cloudflare Tunnel or another reserved HTTPS domain when a
+stable phone setting is needed.
 
 The iOS Simulator should build and show the panel, but camera behavior may be
 limited depending on the simulator/device setup.

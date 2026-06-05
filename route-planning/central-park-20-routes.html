@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Central Park 20-Route Test Plan</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQmnnGoH7UFxgPyuBM0h7xs0+4tC+Qw="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #637083;
+      --line: #d9dee8;
+      --blue: #246bfe;
+      --green: #0d9f6e;
+      --orange: #dd7b21;
+      --purple: #7c4dff;
+      --red: #d43f3a;
+      --teal: #008c99;
+      --shadow: 0 18px 50px rgba(21, 32, 52, 0.14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+      height: 100vh;
+    }
+
+    aside {
+      position: relative;
+      z-index: 700;
+      min-height: 0;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+      background: #dfe8e1;
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      padding: 22px 22px 16px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(12px);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      line-height: 1;
+      padding: 8px 10px;
+    }
+
+    button:hover {
+      border-color: #aeb8c9;
+      background: #f7f9fc;
+    }
+
+    button.active {
+      border-color: var(--blue);
+      background: #eaf0ff;
+      color: #0f4acc;
+      font-weight: 700;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      padding: 16px 22px 4px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+      padding: 10px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .route-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 16px 22px 24px;
+    }
+
+    .route-card {
+      display: grid;
+      grid-template-columns: 8px 1fr;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .route-card:hover,
+    .route-card.selected {
+      border-color: #9fb4f4;
+      box-shadow: 0 10px 26px rgba(36, 107, 254, 0.12);
+    }
+
+    .route-button {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      line-height: inherit;
+      padding: 0;
+      text-align: left;
+      text-decoration: none;
+    }
+
+    .route-button:hover {
+      border: 0;
+      background: transparent;
+    }
+
+    .stripe {
+      background: var(--blue);
+    }
+
+    .route-content {
+      padding: 12px;
+    }
+
+    .route-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .route-id {
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      background: #eff3f8;
+      color: #47566d;
+      font-size: 11px;
+      line-height: 1;
+      padding: 5px 8px;
+      white-space: nowrap;
+    }
+
+    .route-name {
+      margin: 8px 0 3px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .route-en {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .route-focus {
+      margin-top: 8px;
+      color: #2f3d51;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .map-control-bar {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 650;
+      display: flex;
+      gap: 8px;
+    }
+
+    .legend,
+    .detail,
+    .map-note {
+      position: absolute;
+      z-index: 650;
+      border: 1px solid rgba(217, 222, 232, 0.9);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: var(--shadow);
+    }
+
+    .legend {
+      right: 16px;
+      bottom: 16px;
+      width: min(280px, calc(100vw - 40px));
+      padding: 12px;
+    }
+
+    .legend h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      color: #425066;
+      font-size: 12px;
+    }
+
+    .swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      flex: 0 0 auto;
+    }
+
+    .detail {
+      left: 16px;
+      bottom: 16px;
+      width: min(430px, calc(100vw - 40px));
+      padding: 14px;
+    }
+
+    .detail-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .detail-en {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .detail-meta {
+      margin-top: 10px;
+      color: #2f3d51;
+      font-size: 12px;
+      line-height: 1.48;
+    }
+
+    .map-note {
+      left: 16px;
+      top: 16px;
+      width: min(420px, calc(100vw - 40px));
+      padding: 11px 13px;
+      color: #435166;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .leaflet-container {
+      font-family: inherit;
+    }
+
+    .leaflet-popup-content {
+      margin: 14px;
+      min-width: 250px;
+    }
+
+    .popup-title {
+      margin: 0;
+      font-weight: 800;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .popup-en {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .popup-meta {
+      margin-top: 10px;
+      color: #2f3d51;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .leaflet-tile {
+      filter: saturate(0.95) contrast(1.02);
+    }
+
+    @media (max-width: 900px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        grid-template-columns: 1fr;
+        height: auto;
+        min-height: 100vh;
+      }
+
+      aside {
+        height: 55vh;
+        max-height: 55vh;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      main,
+      #map {
+        height: 45vh;
+        min-height: 420px;
+      }
+
+      .summary {
+        padding: 10px 16px 2px;
+      }
+
+      .route-list {
+        gap: 8px;
+        padding: 10px 16px 18px;
+      }
+
+      .route-content {
+        padding: 10px;
+      }
+
+      .route-focus {
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+
+      .map-note {
+        display: none;
+      }
+
+      .legend {
+        right: 10px;
+        bottom: 10px;
+      }
+
+      .detail {
+        left: 10px;
+        bottom: 10px;
+        width: min(360px, calc(100vw - 20px));
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <section class="header">
+        <h1>Central Park 20-Route Test Plan</h1>
+        <p class="subtitle">
+          Standalone planning map using a real basemap. It does not connect to the app. Click a route in the list or on the map to review its testing goal.
+        </p>
+        <div class="toolbar" aria-label="Route filters">
+          <button class="active" data-filter="all">All</button>
+          <button data-filter="baseline">Core 5</button>
+          <button data-filter="gps">GPS</button>
+          <button data-filter="beacon">Beacon</button>
+          <button data-filter="vision">Vision</button>
+          <button data-filter="reroute">Reroute</button>
+          <button data-filter="round2">Round 2</button>
+        </div>
+      </section>
+
+      <section class="summary" aria-label="Route summary">
+        <div class="metric">
+          <strong id="visible-count">20</strong>
+          <span>Visible routes</span>
+        </div>
+        <div class="metric">
+          <strong>5</strong>
+          <span>Core routes</span>
+        </div>
+        <div class="metric">
+          <strong>20</strong>
+          <span>Total routes</span>
+        </div>
+      </section>
+
+      <section id="route-list" class="route-list" aria-label="Route list"></section>
+    </aside>
+
+    <main>
+      <div id="map"></div>
+
+      <div class="map-control-bar" aria-label="Map controls">
+        <button id="fit-park">Fit Park</button>
+        <button id="fit-routes">Fit Routes</button>
+      </div>
+
+      <div class="map-note">
+        This map uses a real basemap with the 20 proposed testing routes drawn on top. Coordinates are planning-level approximations and should be verified before field testing.
+      </div>
+
+      <div id="detail" class="detail">
+        <p class="detail-title">Select a route</p>
+        <div class="detail-en">Click a route from the list or the map.</div>
+        <div class="detail-meta">Start with the Core 5 routes, then expand to GPS, Beacon, Vision, Reroute, and Round 2 stress-test routes.</div>
+      </div>
+
+      <div class="legend">
+        <h2>Test Category</h2>
+        <div class="legend-row"><span class="swatch" style="background:#246bfe"></span>Baseline</div>
+        <div class="legend-row"><span class="swatch" style="background:#0d9f6e"></span>GPS tracking</div>
+        <div class="legend-row"><span class="swatch" style="background:#dd7b21"></span>Beacon and turns</div>
+        <div class="legend-row"><span class="swatch" style="background:#7c4dff"></span>Vision recovery</div>
+        <div class="legend-row"><span class="swatch" style="background:#d43f3a"></span>Complex / Round 2</div>
+      </div>
+    </main>
+  </div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+  <script>
+    const colors = {
+      baseline: "#246bfe",
+      gps: "#0d9f6e",
+      beacon: "#dd7b21",
+      vision: "#7c4dff",
+      reroute: "#d43f3a",
+      round2: "#008c99"
+    };
+
+    const centralParkBounds = [
+      [40.7642, -73.9835],
+      [40.8010, -73.9482]
+    ];
+
+    const routes = [
+      {
+        id: "R01",
+        en: "The Mall South End -> Bethesda Terrace",
+        focusEn: "Straight path, continuous GPS tracking, basic beacon behavior",
+        category: "baseline",
+        priority: "Core 5",
+        risk: "Low",
+        coords: [[40.76930, -73.97240], [40.77060, -73.97210], [40.77180, -73.97170], [40.77290, -73.97125], [40.77360, -73.97095]]
+      },
+      {
+        id: "R02",
+        en: "Bethesda Fountain -> Bow Bridge",
+        focusEn: "Short landmark route and beacon arrival prompt",
+        category: "baseline",
+        priority: "Core 5",
+        risk: "Low",
+        coords: [[40.77410, -73.97070], [40.77435, -73.97125], [40.77470, -73.97170], [40.77505, -73.97190]]
+      },
+      {
+        id: "R03",
+        en: "Bow Bridge -> Strawberry Fields",
+        focusEn: "Curved path, bridge-area GPS, route continuity",
+        category: "beacon",
+        priority: "Round 1",
+        risk: "Medium",
+        coords: [[40.77505, -73.97190], [40.77540, -73.97245], [40.77570, -73.97320], [40.77578, -73.97405], [40.77570, -73.97465]]
+      },
+      {
+        id: "R04",
+        en: "Strawberry Fields -> North Sheep Meadow",
+        focusEn: "Open-area GPS stability",
+        category: "gps",
+        priority: "Round 1",
+        risk: "Low",
+        coords: [[40.77570, -73.97465], [40.77495, -73.97455], [40.77400, -73.97430], [40.77315, -73.97385]]
+      },
+      {
+        id: "R05",
+        en: "Columbus Circle Entrance -> Sheep Meadow",
+        focusEn: "Entering the park and route generation",
+        category: "baseline",
+        priority: "Core 5",
+        risk: "Low",
+        coords: [[40.76810, -73.98190], [40.76865, -73.97975], [40.76920, -73.97770], [40.77040, -73.97540], [40.77140, -73.97455]]
+      },
+      {
+        id: "R06",
+        en: "Sheep Meadow -> The Mall",
+        focusEn: "Fork choice and recalibration behavior",
+        category: "reroute",
+        priority: "Round 1",
+        risk: "Medium",
+        coords: [[40.77140, -73.97455], [40.77105, -73.97360], [40.77075, -73.97290], [40.77060, -73.97210]]
+      },
+      {
+        id: "R07",
+        en: "The Pond -> Near Wollman Rink",
+        focusEn: "Water-side path, gentle curves, Vision safety cue",
+        category: "vision",
+        priority: "Round 1",
+        risk: "Medium",
+        coords: [[40.76655, -73.97350], [40.76720, -73.97410], [40.76785, -73.97465], [40.76840, -73.97475]]
+      },
+      {
+        id: "R08",
+        en: "Wollman Rink -> The Mall",
+        focusEn: "Slope/turn behavior and beacon density",
+        category: "beacon",
+        priority: "Round 1",
+        risk: "Medium",
+        coords: [[40.76840, -73.97475], [40.76895, -73.97415], [40.76935, -73.97325], [40.76970, -73.97255], [40.77060, -73.97210]]
+      },
+      {
+        id: "R09",
+        en: "Bethesda Terrace -> Conservatory Water",
+        focusEn: "Multiple turns across the central park area",
+        category: "baseline",
+        priority: "Core 5",
+        risk: "Medium",
+        coords: [[40.77360, -73.97095], [40.77380, -73.96970], [40.77410, -73.96850], [40.77400, -73.96715], [40.77400, -73.96600]]
+      },
+      {
+        id: "R10",
+        en: "Conservatory Water -> Alice in Wonderland",
+        focusEn: "Short landmark recognition/navigation test",
+        category: "beacon",
+        priority: "Round 1",
+        risk: "Low",
+        coords: [[40.77400, -73.96600], [40.77430, -73.96625], [40.77465, -73.96645], [40.77500, -73.96660]]
+      },
+      {
+        id: "R11",
+        en: "Alice in Wonderland -> South Great Lawn",
+        focusEn: "Open lawn area and GPS drift observation",
+        category: "gps",
+        priority: "Round 1",
+        risk: "Low",
+        coords: [[40.77500, -73.96660], [40.77615, -73.96650], [40.77720, -73.96655], [40.77835, -73.96665], [40.77900, -73.96670]]
+      },
+      {
+        id: "R12",
+        en: "South Great Lawn -> Belvedere Castle",
+        focusEn: "Terrain change and turn cue behavior",
+        category: "beacon",
+        priority: "Round 1",
+        risk: "Medium",
+        coords: [[40.77900, -73.96670], [40.77920, -73.96755], [40.77935, -73.96830], [40.77940, -73.96920]]
+      },
+      {
+        id: "R13",
+        en: "Belvedere Castle -> Shakespeare Garden",
+        focusEn: "Complex small paths and Vision assistance",
+        category: "vision",
+        priority: "Round 2",
+        risk: "Medium",
+        coords: [[40.77940, -73.96920], [40.77950, -73.96955], [40.77955, -73.96985], [40.77950, -73.96995]]
+      },
+      {
+        id: "R14",
+        en: "Shakespeare Garden -> Delacorte Theater",
+        focusEn: "Short path and fork decision",
+        category: "reroute",
+        priority: "Round 2",
+        risk: "Medium",
+        coords: [[40.77950, -73.96995], [40.77975, -73.96960], [40.78000, -73.96925], [40.78020, -73.96890]]
+      },
+      {
+        id: "R15",
+        en: "East Great Lawn -> South Reservoir",
+        focusEn: "Medium-long route and continuous navigation",
+        category: "gps",
+        priority: "Round 1",
+        risk: "Low",
+        coords: [[40.78160, -73.96360], [40.78210, -73.96400], [40.78290, -73.96435], [40.78370, -73.96460], [40.78440, -73.96470]]
+      },
+      {
+        id: "R16",
+        en: "South Reservoir -> East Reservoir",
+        focusEn: "Long curved route and GPS smoothing",
+        category: "baseline",
+        priority: "Core 5",
+        risk: "Low",
+        coords: [[40.78440, -73.96470], [40.78485, -73.96325], [40.78555, -73.96175], [40.78620, -73.96035], [40.78680, -73.95900]]
+      },
+      {
+        id: "R17",
+        en: "East Reservoir -> North Meadow",
+        focusEn: "Mid-north route and path continuity",
+        category: "gps",
+        priority: "Round 2",
+        risk: "Medium",
+        coords: [[40.78680, -73.95900], [40.78800, -73.95865], [40.78930, -73.95845], [40.79030, -73.95835], [40.79110, -73.95830]]
+      },
+      {
+        id: "R18",
+        en: "North Meadow -> Conservatory Garden",
+        focusEn: "Longer route and rerouting behavior",
+        category: "reroute",
+        priority: "Round 2",
+        risk: "Medium",
+        coords: [[40.79110, -73.95830], [40.79185, -73.95695], [40.79245, -73.95555], [40.79300, -73.95385], [40.79340, -73.95240]]
+      },
+      {
+        id: "R19",
+        en: "Conservatory Garden -> Harlem Meer",
+        focusEn: "North landmark route and GPS coverage",
+        category: "round2",
+        priority: "Round 2",
+        risk: "Medium",
+        coords: [[40.79340, -73.95240], [40.79420, -73.95205], [40.79510, -73.95175], [40.79610, -73.95160], [40.79650, -73.95150]]
+      },
+      {
+        id: "R20",
+        en: "Harlem Meer -> Near North Woods Entrance",
+        focusEn: "Tree-covered GPS stress and Vision walkable-path recovery",
+        category: "vision",
+        priority: "Round 2",
+        risk: "Medium-High",
+        coords: [[40.79650, -73.95150], [40.79720, -73.95290], [40.79780, -73.95420], [40.79825, -73.95535], [40.79860, -73.95670]]
+      }
+    ];
+
+    const routeList = document.querySelector("#route-list");
+    const visibleCount = document.querySelector("#visible-count");
+    const detail = document.querySelector("#detail");
+    const routeLayers = new Map();
+    let selectedRouteId = null;
+    let currentFilter = "all";
+
+    const routeRenderer = L.canvas({ padding: 0.35, tolerance: 8 });
+    const map = L.map("map", {
+      center: [40.7829, -73.9654],
+      zoom: 14,
+      minZoom: 13,
+      maxZoom: 18,
+      maxBounds: [[40.7580, -73.9920], [40.8065, -73.9415]],
+      maxBoundsViscosity: 0.8,
+      preferCanvas: true,
+      zoomAnimation: false,
+      fadeAnimation: false,
+      markerZoomAnimation: false,
+      renderer: routeRenderer
+    });
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      keepBuffer: 1,
+      updateWhenIdle: true,
+      updateWhenZooming: false,
+      detectRetina: false,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    L.rectangle(centralParkBounds, {
+      color: "#21314d",
+      weight: 1,
+      opacity: 0.28,
+      fill: false,
+      interactive: false
+    }).addTo(map);
+
+    function categoryLabel(category) {
+      return {
+        baseline: "Baseline",
+        gps: "GPS",
+        beacon: "Beacon",
+        vision: "Vision",
+        reroute: "Reroute",
+        round2: "Round 2"
+      }[category] || category;
+    }
+
+    function shouldShow(route) {
+      if (currentFilter === "all") return true;
+      if (currentFilter === "baseline") return route.priority === "Core 5";
+      if (currentFilter === "round2") return route.priority === "Round 2" || route.category === "round2";
+      return route.category === currentFilter;
+    }
+
+    function metersBetween(a, b) {
+      const earth = 6371000;
+      const toRad = value => value * Math.PI / 180;
+      const dLat = toRad(b[0] - a[0]);
+      const dLng = toRad(b[1] - a[1]);
+      const lat1 = toRad(a[0]);
+      const lat2 = toRad(b[0]);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      return 2 * earth * Math.asin(Math.sqrt(h));
+    }
+
+    function routeDistance(route) {
+      let total = 0;
+      for (let index = 1; index < route.coords.length; index += 1) {
+        total += metersBetween(route.coords[index - 1], route.coords[index]);
+      }
+      return total;
+    }
+
+    function popupContent(route) {
+      const distance = routeDistance(route);
+      const minutes = Math.max(2, Math.round(distance / 75));
+      return `
+        <div>
+          <p class="popup-title">${route.id} · ${route.en}</p>
+          <div class="popup-en">${categoryLabel(route.category)} test route</div>
+          <div class="popup-meta">
+            <strong>Test focus:</strong> ${route.focusEn}<br>
+            <strong>Priority:</strong> ${route.priority}<br>
+            <strong>Risk level:</strong> ${route.risk}<br>
+            <strong>Estimated length:</strong> ${(distance / 1000).toFixed(2)} km · ${minutes} min walking
+          </div>
+        </div>
+      `;
+    }
+
+    function setDetail(route) {
+      const distance = routeDistance(route);
+      const minutes = Math.max(2, Math.round(distance / 75));
+      detail.innerHTML = `
+        <p class="detail-title">${route.id} · ${route.en}</p>
+        <div class="detail-en">${categoryLabel(route.category)} test route</div>
+        <div class="detail-meta">
+          <strong>Test focus:</strong> ${route.focusEn}<br>
+          <strong>Priority:</strong> ${route.priority}<br>
+          <strong>Risk level:</strong> ${route.risk}<br>
+          <strong>Estimated length:</strong> ${(distance / 1000).toFixed(2)} km · ${minutes} min walking
+        </div>
+      `;
+    }
+
+    function renderList() {
+      routeList.innerHTML = "";
+      const visibleRoutes = routes.filter(shouldShow);
+      visibleCount.textContent = String(visibleRoutes.length);
+
+      visibleRoutes.forEach(route => {
+        const card = document.createElement("article");
+        card.className = `route-card${selectedRouteId === route.id ? " selected" : ""}`;
+        card.dataset.routeId = route.id;
+        card.innerHTML = `
+          <div class="stripe" style="background:${colors[route.category]}"></div>
+          <a class="route-button" href="#${route.id}" data-route-id="${route.id}">
+            <div class="route-content">
+              <div class="route-top">
+                <span class="route-id">${route.id}</span>
+                <span class="pill">${route.priority} · ${categoryLabel(route.category)}</span>
+              </div>
+              <div class="route-name">${route.en}</div>
+              <div class="route-en">${categoryLabel(route.category)} test route</div>
+              <div class="route-focus">${route.focusEn}</div>
+            </div>
+          </a>
+        `;
+        routeList.appendChild(card);
+      });
+    }
+
+    function updateMapVisibility() {
+      routes.forEach(route => {
+        const visible = shouldShow(route);
+        const layers = routeLayers.get(route.id);
+        if (!layers) return;
+        Object.values(layers).forEach(layer => {
+          if (visible && !map.hasLayer(layer)) layer.addTo(map);
+          if (!visible && map.hasLayer(layer)) map.removeLayer(layer);
+        });
+      });
+    }
+
+    function updateSelectionStyles() {
+      routeLayers.forEach((layers, routeId) => {
+        const route = routes.find(item => item.id === routeId);
+        const selected = selectedRouteId === routeId;
+        const dim = selectedRouteId && !selected;
+        layers.line.setStyle({
+          weight: selected ? 9 : route.priority === "Core 5" ? 6 : 4,
+          opacity: selected ? 1 : dim ? 0.24 : 0.88
+        });
+        layers.start.setStyle({ opacity: dim ? 0.25 : 1, fillOpacity: dim ? 0.25 : 1 });
+        layers.end.setStyle({ opacity: dim ? 0.25 : 1, fillOpacity: dim ? 0.25 : 1 });
+      });
+
+      document.querySelectorAll(".route-card").forEach(card => {
+        card.classList.toggle("selected", card.dataset.routeId === selectedRouteId);
+      });
+    }
+
+    function selectRoute(routeId, fitRoute) {
+      selectedRouteId = routeId;
+      const route = routes.find(item => item.id === routeId);
+      const layers = routeLayers.get(routeId);
+      if (!route) return;
+      setDetail(route);
+      renderList();
+      updateMapVisibility();
+      updateSelectionStyles();
+      if (layers) {
+        layers.line.openPopup();
+      }
+      if (fitRoute && layers) {
+        map.fitBounds(route.coords, { padding: [80, 80], maxZoom: 16, animate: false });
+      }
+    }
+
+    routeList.addEventListener("click", event => {
+      const target = event.target instanceof Element ? event.target : event.target.parentElement;
+      const card = target?.closest(".route-card");
+      if (!card) return;
+      selectRoute(card.dataset.routeId, true);
+    });
+
+    routeList.addEventListener("keydown", event => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const target = event.target instanceof Element ? event.target : event.target.parentElement;
+      const card = target?.closest(".route-card");
+      if (!card) return;
+      event.preventDefault();
+      selectRoute(card.dataset.routeId, true);
+    });
+
+    window.routePlannerSelect = selectRoute;
+
+    function selectRouteFromHash() {
+      const routeId = window.location.hash.replace("#", "");
+      if (routes.some(route => route.id === routeId)) {
+        selectRoute(routeId, true);
+      }
+    }
+
+    window.addEventListener("hashchange", selectRouteFromHash);
+
+    routes.forEach(route => {
+      const color = colors[route.category];
+      const line = L.polyline(route.coords, {
+        renderer: routeRenderer,
+        color,
+        weight: route.priority === "Core 5" ? 6 : 4,
+        opacity: 0.88,
+        lineCap: "round",
+        lineJoin: "round"
+      }).addTo(map);
+      line.bindPopup(popupContent(route));
+      line.on("click", () => selectRoute(route.id, false));
+
+      const start = L.circleMarker(route.coords[0], {
+        renderer: routeRenderer,
+        radius: 5,
+        color: "#ffffff",
+        weight: 2,
+        fillColor: color,
+        fillOpacity: 1
+      }).addTo(map);
+
+      const end = L.circleMarker(route.coords[route.coords.length - 1], {
+        renderer: routeRenderer,
+        radius: 6,
+        color,
+        weight: 2,
+        fillColor: "#ffffff",
+        fillOpacity: 1
+      }).addTo(map);
+
+      start.bindTooltip(`${route.id} start`, { permanent: false });
+      end.bindTooltip(`${route.id} end`, { permanent: false });
+      start.on("click", () => selectRoute(route.id, true));
+      end.on("click", () => selectRoute(route.id, true));
+
+      routeLayers.set(route.id, { line, start, end });
+    });
+
+    document.querySelectorAll("[data-filter]").forEach(button => {
+      button.addEventListener("click", () => {
+        currentFilter = button.dataset.filter;
+        selectedRouteId = null;
+        document.querySelectorAll("[data-filter]").forEach(item => item.classList.toggle("active", item === button));
+        renderList();
+        updateMapVisibility();
+        updateSelectionStyles();
+        map.fitBounds(centralParkBounds, { padding: [28, 28], animate: false });
+      });
+    });
+
+    document.querySelector("#fit-park").addEventListener("click", () => {
+      selectedRouteId = null;
+      renderList();
+      updateSelectionStyles();
+      map.fitBounds(centralParkBounds, { padding: [28, 28], animate: false });
+    });
+
+    document.querySelector("#fit-routes").addEventListener("click", () => {
+      const visiblePoints = routes.filter(shouldShow).flatMap(route => route.coords);
+      if (visiblePoints.length > 0) {
+        map.fitBounds(visiblePoints, { padding: [42, 42], animate: false });
+      }
+    });
+
+    renderList();
+    updateMapVisibility();
+    map.fitBounds(centralParkBounds, { padding: [28, 28], animate: false });
+    document.querySelector("aside").scrollTop = 0;
+  </script>
+</body>
+</html>

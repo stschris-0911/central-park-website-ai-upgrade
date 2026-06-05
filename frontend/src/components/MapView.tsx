@@ -1,3 +1,4 @@
+import { memo, useMemo } from "react";
 import { CircleMarker, GeoJSON, MapContainer, Marker, Polyline, Popup, TileLayer, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { GeoJSONFeature, GeoJSONFeatureCollection } from "../lib/types";
@@ -97,7 +98,7 @@ function MapTapHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) 
   return null;
 }
 
-export default function MapView({
+function MapView({
   edges,
   filteredFeatures,
   routeCoords,
@@ -108,7 +109,10 @@ export default function MapView({
   onNodeClick,
   onEdgeClick
 }: Props) {
-  const displayRouteCoords = trimRouteCoords(routeCoords, startPoint, endPoint);
+  const displayRouteCoords = useMemo(
+    () => trimRouteCoords(routeCoords, startPoint, endPoint),
+    [endPoint, routeCoords, startPoint]
+  );
 
   return (
     <div className="map-accessibility-layer" aria-hidden="true">
@@ -198,7 +202,7 @@ export default function MapView({
             weight: 2
           }}
         >
-          <Popup>Temporary beacon {index + 1}</Popup>
+          <Popup>Audio waypoint {index + 1}</Popup>
         </CircleMarker>
       ))}
 
@@ -238,3 +242,5 @@ export default function MapView({
     </div>
   );
 }
+
+export default memo(MapView);

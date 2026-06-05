@@ -12,6 +12,7 @@ export type BeaconPlan = {
 
 const EARTH_RADIUS_M = 6371000;
 const DEG_TO_M = (Math.PI / 180) * EARTH_RADIUS_M;
+const FT_TO_M = 0.3048;
 
 export function distanceMeters(a: LatLon, b: LatLon): number {
   const lat1 = (a[0] * Math.PI) / 180;
@@ -167,12 +168,33 @@ function enforceMinSpacing(
 
 export function buildBeaconPlan(
   coords: readonly LatLon[],
-  maxDriftMeters = 2.5,
-  stepMeters = 6
+  maxDriftMeters = 5 * FT_TO_M,
+  stepMeters = 20 * FT_TO_M
 ): BeaconPlan {
-  const angles = [2, 3, 4, 6, 8, 12, 16];
-  const maxChords: Array<number | null> = [18, 27, 36, 50, 75, 100, 150, null];
-  const spacings: Array<number | null> = [null, 9, 15, 20, 30, 45, 60];
+  const angles = [1, 2, 3, 4, 6, 8, 12, 16, 24];
+  const maxChords: Array<number | null> = [
+    60 * FT_TO_M,
+    90 * FT_TO_M,
+    120 * FT_TO_M,
+    150 * FT_TO_M,
+    200 * FT_TO_M,
+    300 * FT_TO_M,
+    500 * FT_TO_M,
+    800 * FT_TO_M,
+    1500 * FT_TO_M,
+    null
+  ];
+  const spacings: Array<number | null> = [
+    null,
+    30 * FT_TO_M,
+    50 * FT_TO_M,
+    65 * FT_TO_M,
+    100 * FT_TO_M,
+    150 * FT_TO_M,
+    200 * FT_TO_M,
+    300 * FT_TO_M,
+    500 * FT_TO_M
+  ];
   const candidates: BeaconPlan[] = [];
 
   for (const angleDeg of angles) {
