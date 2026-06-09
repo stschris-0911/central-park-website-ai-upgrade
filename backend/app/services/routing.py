@@ -267,13 +267,86 @@ def _aligned_edge_coords_lonlat(graph, u, v, edge_attrs: dict[str, Any], transfo
         reverse = _meters_from_lonlat(coords[0], v_coord) + _meters_from_lonlat(coords[-1], u_coord)
         if reverse < forward:
             coords = list(reversed(coords))
+    elif u_coord:
+        if _meters_from_lonlat(coords[-1], u_coord) < _meters_from_lonlat(coords[0], u_coord):
+            coords = list(reversed(coords))
+    elif v_coord:
+        if _meters_from_lonlat(coords[0], v_coord) < _meters_from_lonlat(coords[-1], v_coord):
+            coords = list(reversed(coords))
 
     return coords
+
+
+def _edge_topology_penalty_m(graph, u, v, edge_attrs: dict[str, Any], transformer=None) -> float:
+    u_coord = _graph_node_lonlat(graph.nodes[u], transformer) if u in graph.nodes else None
+    v_coord = _graph_node_lonlat(graph.nodes[v], transformer) if v in graph.nodes else None
+    if not u_coord or not v_coord:
+        return 0.0
+
+    node_distance = _meters_from_lonlat(u_coord, v_coord)
+    edge_length = _edge_length_m(edge_attrs)
+    penalty = 0.0
+
+    if edge_length > 0 and node_distance > max(35.0, edge_length * 2.5 + 10.0):
+        penalty += 10000.0 + node_distance * 20.0
+
+    coords = _edge_coords_lonlat(edge_attrs, transformer)
+    if coords:
+        u_gap = min(_meters_from_lonlat(u_coord, coords[0]), _meters_from_lonlat(u_coord, coords[-1]))
+        v_gap = min(_meters_from_lonlat(v_coord, coords[0]), _meters_from_lonlat(v_coord, coords[-1]))
+        if max(u_gap, v_gap) > 12.0 and node_distance > 20.0:
+            penalty += 10000.0 + max(u_gap, v_gap) * 20.0
+
+    return penalty
+
+
+def _route_weight_for_graph(graph, transformer=None):
+    def weight(u, v, attrs):
+        edge_attrs = _get_edge_attrs(attrs) or attrs
+        return _accessibility_weight(u, v, edge_attrs) + _edge_topology_penalty_m(
+            graph, u, v, edge_attrs, transformer
+        )
+
+    return weight
+
+
+def _drop_inconsistent_edges(graph, transformer=None):
+    bad_edges = []
+    for u, v, attrs in graph.edges(data=True):
+        edge_attrs = _get_edge_attrs(attrs) or attrs
+        if _edge_topology_penalty_m(graph, u, v, edge_attrs, transformer) > 0:
+            bad_edges.append((u, v))
+
+    if not bad_edges:
+        return graph
+
+    filtered = graph.copy()
+    filtered.remove_edges_from(bad_edges)
+    return filtered
 
 
 def _append_coord(out: list[tuple[float, float]], point: tuple[float, float]) -> None:
     if not out or _meters_from_lonlat(out[-1], point) > 0.05:
         out.append(point)
+
+
+def _extend_coords_with_segment(out: list[tuple[float, float]], segment: list[tuple[float, float]]) -> None:
+    if not segment:
+        return
+
+    oriented = list(segment)
+    if out:
+        forward_gap = _meters_from_lonlat(out[-1], oriented[0])
+        reverse_gap = _meters_from_lonlat(out[-1], oriented[-1])
+        if reverse_gap < forward_gap:
+            oriented.reverse()
+
+    start_index = 0
+    if out and _meters_from_lonlat(out[-1], oriented[0]) <= 2.0:
+        start_index = 1
+
+    for point in oriented[start_index:]:
+        _append_coord(out, point)
 
 
 def _project_point_to_segment_lonlat(
@@ -646,6 +719,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
     graph = _zoo_filtered_graph(graph, transformer)
     if graph is None or len(graph.nodes) == 0:
         return None
+    graph = _drop_inconsistent_edges(graph, transformer)
 
     # If the user selected an explicit graph node, do not silently snap it to
     # another node after Zoo/restricted-area filtering. Otherwise the route panel
@@ -676,7 +750,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         return None
 
     try:
-        path = nx.shortest_path(graph, source=start_node, target=end_node, weight=_accessibility_weight)
+        path = nx.shortest_path(graph, source=start_node, target=end_node, weight=_route_weight_for_graph(graph, transformer))
     except Exception:
         try:
             path = nx.shortest_path(graph, source=start_node, target=end_node, weight="length_m")
@@ -690,12 +764,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         if edge:
             segment = _aligned_edge_coords_lonlat(graph, u, v, edge, transformer)
             if segment:
-                if coords and coords[-1] == segment[0]:
-                    coords.extend(segment[1:])
-                elif coords and coords[-1] == segment[-1]:
-                    coords.extend(list(reversed(segment[:-1])))
-                else:
-                    coords.extend(segment)
+                _extend_coords_with_segment(coords, segment)
             total_m += _edge_length_m(edge, segment)
         if not coords:
             u_coord = _graph_node_lonlat(graph.nodes[u], transformer)

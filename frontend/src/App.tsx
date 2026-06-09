@@ -143,6 +143,9 @@ const HAPTIC_BEACON_MS = 18;
 const HAPTIC_ARRIVAL_PATTERN = [28];
 const HAPTIC_FINAL_PATTERN = [28, 36, 28];
 const FORCED_DECISION_BEACON_SNAP_METERS = 18;
+const FORCED_DECISION_BEACON_MIN_SPACING_METERS = 16;
+const FORCED_DECISION_BEACON_TURN_DEGREES = 38;
+const FORCED_DECISION_BEACON_DUPLICATE_METERS = 3;
 
 function toRad(value: number): number {
   return (value * Math.PI) / 180;
@@ -249,15 +252,115 @@ function autoRerouteThresholdMeters(accuracyMeters: number | null): number {
   return Math.max(25, Math.min(65, accuracyMeters * 2));
 }
 
-function forcedBeaconPointsFromPathNodes(pathNodes: readonly RoutePathNode[]): LatLon[] {
-  const points: LatLon[] = [];
-  for (const node of pathNodes) {
-    if (!node.point || node.point.length < 2) continue;
-    const [lon, lat] = node.point;
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
-    points.push([lat, lon]);
+type ForcedDecisionBeaconCandidate = {
+  index: number;
+  point: LatLon;
+  score: number;
+};
+
+function pathNodePoint(node: RoutePathNode): LatLon | null {
+  if (!node.point || node.point.length < 2) return null;
+  const [lon, lat] = node.point;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  return [lat, lon];
+}
+
+function isNamedDecisionNode(node: RoutePathNode): boolean {
+  const text = `${node.category ?? ""} ${node.label ?? ""} ${node.description ?? ""}`.toLowerCase();
+  return /\b(junction|intersection|crossing|crosswalk|entrance|gate|bridge|stairs|stair|ramp|turn)\b/.test(text);
+}
+
+function compactDecisionBeaconCandidates(
+  candidates: readonly ForcedDecisionBeaconCandidate[],
+  minSpacingMeters: number
+): LatLon[] {
+  const kept: ForcedDecisionBeaconCandidate[] = [];
+
+  for (const candidate of candidates) {
+    const previous = kept[kept.length - 1];
+    if (!previous || beaconDistanceMeters(previous.point, candidate.point) >= minSpacingMeters) {
+      kept.push(candidate);
+      continue;
+    }
+
+    if (candidate.score > previous.score) {
+      kept[kept.length - 1] = candidate;
+    }
   }
-  return points;
+
+  return kept.map((candidate) => candidate.point);
+}
+
+function forcedBeaconPointsFromPathNodes(pathNodes: readonly RoutePathNode[]): LatLon[] {
+  const points: Array<{ node: RoutePathNode; point: LatLon }> = [];
+  for (const node of pathNodes) {
+    const point = pathNodePoint(node);
+    if (!point) continue;
+
+    const previous = points[points.length - 1]?.point;
+    if (previous && beaconDistanceMeters(previous, point) < FORCED_DECISION_BEACON_DUPLICATE_METERS) {
+      continue;
+    }
+
+    points.push({ node, point });
+  }
+
+  if (points.length < 3) return [];
+
+  const candidates: ForcedDecisionBeaconCandidate[] = [];
+  for (let index = 1; index < points.length - 1; index += 1) {
+    const previous = points[index - 1].point;
+    const current = points[index].point;
+    const next = points[index + 1].point;
+
+    if (
+      beaconDistanceMeters(previous, current) < FORCED_DECISION_BEACON_DUPLICATE_METERS ||
+      beaconDistanceMeters(current, next) < FORCED_DECISION_BEACON_DUPLICATE_METERS
+    ) {
+      continue;
+    }
+
+    const before = bearingDegrees(previous, current);
+    const after = bearingDegrees(current, next);
+    const turnDegrees = Math.abs(angleDeltaDegrees(before, after));
+    const namedDecision = isNamedDecisionNode(points[index].node);
+
+    if (!namedDecision && turnDegrees < FORCED_DECISION_BEACON_TURN_DEGREES) {
+      continue;
+    }
+
+    candidates.push({
+      index,
+      point: current,
+      score: turnDegrees + (namedDecision ? 25 : 0)
+    });
+  }
+
+  return compactDecisionBeaconCandidates(candidates, FORCED_DECISION_BEACON_MIN_SPACING_METERS);
+}
+
+function enforceBeaconIndexSpacing(
+  indices: readonly number[],
+  samples: readonly LatLon[],
+  minSpacingMeters: number
+): number[] {
+  if (indices.length <= 2) return Array.from(indices);
+
+  const kept = [indices[0]];
+  for (let index = 1; index < indices.length - 1; index += 1) {
+    const sampleIndex = indices[index];
+    const lastKeptIndex = kept[kept.length - 1];
+    if (beaconDistanceMeters(samples[lastKeptIndex], samples[sampleIndex]) >= minSpacingMeters) {
+      kept.push(sampleIndex);
+    }
+  }
+
+  const finalIndex = indices[indices.length - 1];
+  if (kept[kept.length - 1] !== finalIndex) {
+    kept.push(finalIndex);
+  }
+
+  return kept;
 }
 
 function addForcedDecisionBeacons(
@@ -280,7 +383,11 @@ function addForcedDecisionBeacons(
     }
   }
 
-  const sortedIndices = Array.from(indices).sort((a, b) => a - b);
+  const sortedIndices = enforceBeaconIndexSpacing(
+    Array.from(indices).sort((a, b) => a - b),
+    plan.samples,
+    FORCED_DECISION_BEACON_MIN_SPACING_METERS
+  );
   return {
     ...plan,
     indices: sortedIndices,
@@ -293,7 +400,12 @@ function buildRouteWaypointPlan(coords: readonly LatLon[], forcedPoints: readonl
   const pharosPlan = addForcedDecisionBeacons(buildBeaconPlan(coords), forcedPoints, coords[0], finalCoord);
   const routeTargets = pharosPlan.beacons
     .map((coord, index) => ({ coord, index }))
-    .filter(({ coord, index }) => index > 0 || beaconDistanceMeters(coord, coords[0]) > 0.5);
+    .filter(({ coord }) => {
+      const distanceFromStart = beaconDistanceMeters(coord, coords[0]);
+      const distanceFromFinal = beaconDistanceMeters(coord, finalCoord);
+      if (distanceFromStart <= 0.5) return false;
+      return distanceFromStart >= FORCED_DECISION_BEACON_MIN_SPACING_METERS || distanceFromFinal <= 0.5;
+    });
   const beacons =
     routeTargets.length > 0
       ? routeTargets.map(({ coord }) => [coord[0], coord[1]] as LatLon)
@@ -307,6 +419,15 @@ function buildRouteWaypointPlan(coords: readonly LatLon[], forcedPoints: readonl
   if (beaconDistanceMeters(lastBeacon, finalCoord) > 0.5) {
     beacons.push([finalCoord[0], finalCoord[1]]);
     indices.push(pharosPlan.samples.length - 1);
+  }
+
+  if (
+    beacons.length > 1 &&
+    beaconDistanceMeters(beacons[beacons.length - 2], beacons[beacons.length - 1]) <
+      FORCED_DECISION_BEACON_MIN_SPACING_METERS
+  ) {
+    beacons.splice(beacons.length - 2, 1);
+    indices.splice(indices.length - 2, 1);
   }
 
   return {
