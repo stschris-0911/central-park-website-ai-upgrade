@@ -24,6 +24,7 @@ type RoutePanelProps = {
   pathNodes: RoutePathNode[];
   stopSequence: PlanStop[];
   legSummaries: LegSummary[];
+  isRouteLoading: boolean;
   isSpeaking: boolean;
   isNavigating: boolean;
   audioBeaconEnabled: boolean;
@@ -60,6 +61,7 @@ export default function RoutePanel({
   pathNodes,
   stopSequence,
   legSummaries,
+  isRouteLoading,
   isSpeaking,
   isNavigating,
   audioBeaconEnabled,
@@ -79,12 +81,21 @@ export default function RoutePanel({
   const hasRoute = Boolean(routeSummary);
   const showDetails = !sheet.isPeek;
   const showFullDetails = sheet.isFull;
+  const title = isRouteLoading ? (hasRoute ? "Updating route" : "Generating route") : "Route";
+  const summaryText = isRouteLoading
+    ? "Finding walkable path..."
+    : isNavigating && navigationPrompt
+      ? navigationPrompt
+      : hasRoute
+        ? routeSummary
+        : "Select a start and destination";
 
   return (
     <section
       className={`route-card route-card--${sheet.level}`}
       {...sheet.sheetProps}
       aria-label="Route summary"
+      aria-busy={isRouteLoading}
     >
       <button type="button" className="route-card__handle sheet-handle" {...sheet.handleProps}>
         <span aria-hidden="true" />
@@ -92,14 +103,8 @@ export default function RoutePanel({
 
       <div className="route-card__header">
         <div>
-          <h3>{hasRoute ? "Route" : "Route panel"}</h3>
-          <div className="route-card__summary-line">
-            {isNavigating && navigationPrompt
-              ? navigationPrompt
-              : hasRoute
-                ? routeSummary
-                : "Select a start and destination"}
-          </div>
+          <h3>{title}</h3>
+          <div className="route-card__summary-line">{summaryText}</div>
         </div>
 
         <div className="route-card__actions">

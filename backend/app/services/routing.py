@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from functools import lru_cache
 from typing import Any
 
 import networkx as nx
@@ -314,11 +315,26 @@ def _edge_topology_penalty_m(graph, u, v, edge_attrs: dict[str, Any], transforme
 def _route_weight_for_graph(graph, transformer=None):
     def weight(u, v, attrs):
         edge_attrs = _get_edge_attrs(attrs) or attrs
+        try:
+            cached_weight = float(edge_attrs.get("_route_weight_m"))
+            if cached_weight > 0:
+                return cached_weight
+        except Exception:
+            pass
         return _accessibility_weight(u, v, edge_attrs) + _edge_topology_penalty_m(
             graph, u, v, edge_attrs, transformer
         )
 
     return weight
+
+
+def _precompute_route_weights(graph, transformer=None):
+    for u, v, attrs in graph.edges(data=True):
+        edge_attrs = _get_edge_attrs(attrs) or attrs
+        edge_attrs["_route_weight_m"] = _accessibility_weight(u, v, edge_attrs) + _edge_topology_penalty_m(
+            graph, u, v, edge_attrs, transformer
+        )
+    return graph
 
 
 def _drop_inconsistent_edges(graph, transformer=None):
@@ -380,13 +396,51 @@ def _project_point_to_segment_lonlat(
     return foot, _meters_from_lonlat(point, foot), t
 
 
-def _nearest_graph_edge_location(graph, lon: float, lat: float, transformer=None):
-    point = (lon, lat)
-    best: dict[str, Any] | None = None
+@lru_cache(maxsize=8)
+def _prepared_route_graph(park_id: str):
+    graph = load_graph(park_id)
+    if graph is None or len(graph.nodes) == 0:
+        return None, None
 
+    transformer = _make_transformer(_graph_crs(graph, park_id))
+    graph = _restricted_area_filtered_graph(graph, transformer, park_id)
+    if graph is None or len(graph.nodes) == 0:
+        return None, transformer
+
+    graph = _drop_inconsistent_edges(graph, transformer)
+    _precompute_route_weights(graph, transformer)
+    return graph, transformer
+
+
+@lru_cache(maxsize=8)
+def _route_snap_records(park_id: str):
+    graph, transformer = _prepared_route_graph(park_id)
+    if graph is None:
+        return tuple()
+
+    records = []
     for u, v, attrs in graph.edges(data=True):
         edge_attrs = _get_edge_attrs(attrs) or attrs
         coords = _aligned_edge_coords_lonlat(graph, u, v, edge_attrs, transformer)
+        if len(coords) >= 2:
+            records.append((u, v, edge_attrs, coords))
+
+    return tuple(records)
+
+
+def _nearest_graph_edge_location(graph, lon: float, lat: float, transformer=None, park_id: str | None = None):
+    point = (lon, lat)
+    best: dict[str, Any] | None = None
+
+    if park_id:
+        edge_records = _route_snap_records(normalize_park_id(park_id))
+    else:
+        edge_records = tuple(
+            (u, v, _get_edge_attrs(attrs) or attrs, _aligned_edge_coords_lonlat(graph, u, v, _get_edge_attrs(attrs) or attrs, transformer))
+            for u, v, attrs in graph.edges(data=True)
+        )
+
+    for u, v, edge_attrs, coords in edge_records:
         if len(coords) < 2:
             continue
 
@@ -443,9 +497,10 @@ def _add_virtual_snap_node(
     lonlat: tuple[float, float],
     label: str,
     transformer=None,
+    park_id: str | None = None,
     max_snap_meters: float = 80.0,
 ):
-    nearest = _nearest_graph_edge_location(graph, lonlat[0], lonlat[1], transformer)
+    nearest = _nearest_graph_edge_location(graph, lonlat[0], lonlat[1], transformer, park_id)
     if nearest is None or nearest["distance_m"] > max_snap_meters:
         return None, None, float("inf")
 
@@ -463,7 +518,7 @@ def _add_virtual_snap_node(
 
     u = nearest["u"]
     v = nearest["v"]
-    attrs = dict(nearest["attrs"])
+    attrs = {key: value for key, value in dict(nearest["attrs"]).items() if key != "_route_weight_m"}
     to_u, to_v = _split_coords_at_foot(nearest["coords"], nearest["segment_index"], foot)
     length_to_u = sum(_meters_from_lonlat(a, b) for a, b in zip(to_u[:-1], to_u[1:]))
     length_to_v = sum(_meters_from_lonlat(a, b) for a, b in zip(to_v[:-1], to_v[1:]))
@@ -501,6 +556,12 @@ def _nearest_graph_node(graph, lon: float, lat: float, transformer=None):
             best_id = node_id
             best_point = coord
     return best_id, best_point, best_dist
+
+
+def warm_route_cache(park_id: str | None = None) -> None:
+    normalized_park_id = normalize_park_id(park_id)
+    _prepared_route_graph(normalized_park_id)
+    _route_snap_records(normalized_park_id)
 
 
 def _node_path_metadata(path: list[Any], graph, transformer=None, park_id: str | None = None) -> list[RoutePathNode]:
@@ -730,15 +791,12 @@ def _restricted_area_filtered_graph(graph, transformer, park_id: str | None = No
 
 
 def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float, float], start_info: RouteEndpointInfo, end_info: RouteEndpointInfo, park_id: str) -> RouteResponse | None:
-    graph = load_graph(park_id)
-    if graph is None or len(graph.nodes) == 0:
+    base_graph, transformer = _prepared_route_graph(normalize_park_id(park_id))
+    if base_graph is None or len(base_graph.nodes) == 0:
         return None
 
-    transformer = _make_transformer(_graph_crs(graph, park_id))
-    graph = _restricted_area_filtered_graph(graph, transformer, park_id)
-    if graph is None or len(graph.nodes) == 0:
-        return None
-    graph = _drop_inconsistent_edges(graph, transformer)
+    needs_virtual_snap = not start_info.node_id or not end_info.node_id
+    graph = base_graph.copy() if needs_virtual_snap else base_graph
 
     # If the user selected an explicit graph node, do not silently snap it to
     # another node after Zoo/restricted-area filtering. Otherwise the route panel
@@ -751,7 +809,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         start_snap_dist = 0.0
     else:
         start_node, start_snap, start_snap_dist = _add_virtual_snap_node(
-            graph, start_lonlat, "start", transformer
+            graph, start_lonlat, "start", transformer, park_id
         )
 
     if end_info.node_id:
@@ -762,7 +820,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         end_snap_dist = 0.0
     else:
         end_node, end_snap, end_snap_dist = _add_virtual_snap_node(
-            graph, end_lonlat, "end", transformer
+            graph, end_lonlat, "end", transformer, park_id
         )
 
     if start_node is None or end_node is None:

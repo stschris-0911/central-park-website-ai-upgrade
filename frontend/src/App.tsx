@@ -649,6 +649,7 @@ export default function App() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [audioBeaconEnabled, setAudioBeaconEnabled] = useState(false);
+  const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
@@ -1675,14 +1676,22 @@ export default function App() {
 
   async function finalizeRoute(start: RouteSelection, end: RouteSelection) {
     const payload = selectionToRouteRequest(start, end, activeParkIdRef.current);
-    const route: RouteResponse = await fetchRoute(payload);
-    applyRoute(route);
-    setPlanStops(route.stop_sequence ?? []);
-    addAssistantMessage(
-      `Route ready: ${endpointLabel(route.start) || start.label} to ${endpointLabel(route.end) || end.label}. ${formatRoute(route.summary.distance_m, route.summary.estimated_minutes)}`,
-      false
-    );
-    speak(routeSpeechRef.current);
+    setIsRouteLoading(true);
+    setAppStatus("Generating route...");
+    setFusionStatus("Generating walkable route.");
+    try {
+      const route: RouteResponse = await fetchRoute(payload);
+      applyRoute(route);
+      setPlanStops(route.stop_sequence ?? []);
+      setAppStatus("Route ready.");
+      addAssistantMessage(
+        `Route ready: ${endpointLabel(route.start) || start.label} to ${endpointLabel(route.end) || end.label}. ${formatRoute(route.summary.distance_m, route.summary.estimated_minutes)}`,
+        false
+      );
+      speak(routeSpeechRef.current);
+    } finally {
+      setIsRouteLoading(false);
+    }
   }
 
   async function handleSelection(selection: RouteSelection) {
@@ -2193,6 +2202,9 @@ export default function App() {
     const nextBeaconIndex = Math.max(0, audioBeaconDebug.currentWaypoint - 1);
     return beacons.slice(nextBeaconIndex);
   }, [audioBeaconDebug.currentWaypoint, isNavigating, routeBeaconPlan]);
+  const showRoutePanel = Boolean(
+    startSelection || endSelection || routeSummary || isRouteLoading || isNavigating
+  );
 
   return (
     <div className="app-shell">
@@ -2237,29 +2249,32 @@ export default function App() {
           onEdgeClick={handleEdgeClick}
         />
         <Legend />
-        <RoutePanel
-          startLabel={startDisplayLabel}
-          endLabel={endDisplayLabel}
-          routeSummary={routeSummary}
-          routeDescription={routeDescription}
-          pathNodes={pathNodes}
-          stopSequence={planStops}
-          legSummaries={legSummaries}
-          isSpeaking={isSpeaking}
-          isNavigating={isNavigating}
-          audioBeaconEnabled={audioBeaconEnabled}
-          audioBeaconDebug={audioBeaconDebug}
-          navigationPrompt={navigationPrompt}
-          onStartNavigation={handleStartNavigation}
-          onStopNavigation={() => stopNavigation()}
-          onToggleAudioBeacon={handleToggleAudioBeacon}
-          onSpeakRoute={handleSpeakRoute}
-          onStopSpeaking={handleStopSpeaking}
-          onReset={resetRoute}
-          onTestCalm={() => void handleTestCalm()}
-          onTestDrumLeft={() => void handleTestDrumLeft()}
-          onTestDrumRight={() => void handleTestDrumRight()}
-        />
+        {showRoutePanel && (
+          <RoutePanel
+            startLabel={startDisplayLabel}
+            endLabel={endDisplayLabel}
+            routeSummary={routeSummary}
+            routeDescription={routeDescription}
+            pathNodes={pathNodes}
+            stopSequence={planStops}
+            legSummaries={legSummaries}
+            isRouteLoading={isRouteLoading}
+            isSpeaking={isSpeaking}
+            isNavigating={isNavigating}
+            audioBeaconEnabled={audioBeaconEnabled}
+            audioBeaconDebug={audioBeaconDebug}
+            navigationPrompt={navigationPrompt}
+            onStartNavigation={handleStartNavigation}
+            onStopNavigation={() => stopNavigation()}
+            onToggleAudioBeacon={handleToggleAudioBeacon}
+            onSpeakRoute={handleSpeakRoute}
+            onStopSpeaking={handleStopSpeaking}
+            onReset={resetRoute}
+            onTestCalm={() => void handleTestCalm()}
+            onTestDrumLeft={() => void handleTestDrumLeft()}
+            onTestDrumRight={() => void handleTestDrumRight()}
+          />
+        )}
       </main>
 
       <ChatPanel

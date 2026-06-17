@@ -232,6 +232,11 @@ input:focus-visible {
   right: 16px;
   bottom: 16px;
   width: 320px;
+  z-index: 1200;
+}
+
+.route-card {
+  z-index: 1320;
 }
 
 .vision-overlay {
@@ -1268,8 +1273,8 @@ input:focus-visible {
     position: fixed;
     left: 12px;
     right: 12px;
-    top: max(118px, calc(env(safe-area-inset-top) + 92px));
-    bottom: auto;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 92px);
     width: auto;
     max-height: 30vh;
     padding: 7px 10px 10px;
@@ -1447,7 +1452,7 @@ input:focus-visible {
   }
 
   .route-card:not(.route-card--peek) {
-    top: max(118px, calc(env(safe-area-inset-top) + 92px));
+    top: auto;
   }
 }
 
