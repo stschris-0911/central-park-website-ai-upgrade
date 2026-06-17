@@ -1,6 +1,6 @@
 {
 	"appId": "com.tianshu.centralparknavigator",
-	"appName": "Central Park Navigator",
+	"appName": "NYC Park",
 	"webDir": "dist",
 	"packageClassList": []
 }

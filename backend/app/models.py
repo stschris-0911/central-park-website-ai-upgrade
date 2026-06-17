@@ -33,6 +33,7 @@ class LegSummary(BaseModel):
 
 
 class RouteRequest(BaseModel):
+    park_id: str = "central_park"
     start_node_id: str | None = None
     end_node_id: str | None = None
     start_point: LonLatPoint | None = None
@@ -77,6 +78,7 @@ class RouteGeoJSONFeature(BaseModel):
 
 
 class RouteResponse(BaseModel):
+    park_id: str = "central_park"
     mode: str
     route_geojson: RouteGeoJSONFeature
     summary: RouteSummary
@@ -98,6 +100,7 @@ class DestinationCandidate(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    park_id: str = "central_park"
     message: str
     current_point: RoutePoint | None = None
     current_plan: list[PlanStop] = Field(default_factory=list)

@@ -14,12 +14,23 @@ export type GeoJSONFeatureCollection = {
   features: GeoJSONFeature[];
 };
 
+export type ParkId = "central_park" | "prospect_park";
+
+export type ParkOption = {
+  park_id: ParkId;
+  name: string;
+  available?: boolean;
+  center?: [number, number] | null;
+  bounds?: any;
+};
+
 export type RoutePoint = {
   lon: number;
   lat: number;
 };
 
 export type RouteRequest = {
+  park_id?: ParkId;
   start_node_id?: string;
   end_node_id?: string;
   start_point?: RoutePoint;
@@ -65,6 +76,7 @@ export type LegSummary = {
 };
 
 export type RouteResponse = {
+  park_id?: ParkId;
   mode: string;
   route_geojson: GeoJSONFeature;
   summary: {

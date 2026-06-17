@@ -5,7 +5,7 @@ import MapView from "./components/MapView";
 import RoutePanel from "./components/RoutePanel";
 import TopBar from "./components/TopBar";
 import VisionPanel from "./components/VisionPanel";
-import { fetchEdges, fetchNodes, fetchRoute, sendChat } from "./lib/api";
+import { fetchEdges, fetchNodes, fetchParks, fetchRoute, sendChat } from "./lib/api";
 import { AudioBeaconEngine, type BeaconFeedbackMode } from "./lib/audio";
 import {
   bearingDegrees as beaconBearingDegrees,
@@ -29,6 +29,8 @@ import type {
   GeoJSONFeature,
   GeoJSONFeatureCollection,
   LegSummary,
+  ParkId,
+  ParkOption,
   PlanStop,
   RouteEndpointInfo,
   RoutePathNode,
@@ -58,8 +60,18 @@ type RouteSelection =
       payload: { point: { lon: number; lat: number } };
     };
 
-function selectionToRouteRequest(start: RouteSelection, end: RouteSelection): RouteRequest {
-  const payload: RouteRequest = { strict_walkable: true };
+const DEFAULT_PARK_ID: ParkId = "central_park";
+const FALLBACK_PARKS: ParkOption[] = [
+  { park_id: "central_park", name: "Central Park", available: true, center: [40.7736, -73.9718] },
+  { park_id: "prospect_park", name: "Prospect Park", available: false, center: [40.6602, -73.9690] }
+];
+const PARK_CENTERS: Record<ParkId, [number, number]> = {
+  central_park: [40.7736, -73.9718],
+  prospect_park: [40.6602, -73.9690]
+};
+
+function selectionToRouteRequest(start: RouteSelection, end: RouteSelection, parkId: ParkId): RouteRequest {
+  const payload: RouteRequest = { park_id: parkId, strict_walkable: true };
   if (start.kind === "node") payload.start_node_id = start.payload.node_id;
   if (start.kind === "point") payload.start_point = start.payload.point;
   if (end.kind === "node") payload.end_node_id = end.payload.node_id;
@@ -614,6 +626,8 @@ function removeCentralParkZooNodes(
 }
 
 export default function App() {
+  const [activeParkId, setActiveParkId] = useState<ParkId>(DEFAULT_PARK_ID);
+  const [parkOptions, setParkOptions] = useState<ParkOption[]>(FALLBACK_PARKS);
   const [nodes, setNodes] = useState<GeoJSONFeatureCollection | null>(null);
   const [edges, setEdges] = useState<GeoJSONFeatureCollection | null>(null);
   const [search, setSearch] = useState("");
@@ -691,6 +705,18 @@ export default function App() {
     until: 0
   });
   const lastAssistSpeechRef = useRef<{ key: string; at: number }>({ key: "", at: 0 });
+  const activeParkIdRef = useRef<ParkId>(activeParkId);
+
+  const activeParkName = useMemo(() => {
+    return parkOptions.find((park) => park.park_id === activeParkId)?.name ?? "NYC Park";
+  }, [activeParkId, parkOptions]);
+  const activeParkCenter = useMemo(() => {
+    return parkOptions.find((park) => park.park_id === activeParkId)?.center ?? PARK_CENTERS[activeParkId];
+  }, [activeParkId, parkOptions]);
+
+  useEffect(() => {
+    activeParkIdRef.current = activeParkId;
+  }, [activeParkId]);
 
   useEffect(() => {
     startSelectionRef.current = startSelection;
@@ -737,6 +763,27 @@ export default function App() {
   useEffect(() => {
     gpsEnabledRef.current = gpsEnabled;
   }, [gpsEnabled]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchParks()
+      .then((parks) => {
+        if (!cancelled && parks.length > 0) {
+          setParkOptions(
+            parks.map((park) => ({
+              ...park,
+              center: park.center ?? PARK_CENTERS[park.park_id]
+            }))
+          );
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -1475,6 +1522,7 @@ export default function App() {
       }
 
       const route = await fetchRoute({
+        park_id: activeParkIdRef.current,
         start_point: { lon: point[1], lat: point[0] },
         strict_walkable: true,
         ...destinationFields
@@ -1538,31 +1586,34 @@ export default function App() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [nodeData, edgeData, zooAreas] = await Promise.all([
-        fetchNodes(),
-        fetchEdges(),
-        loadCentralParkZooBoundary()
+      const [nodeData, edgeData, restrictedAreas] = await Promise.all([
+        fetchNodes(activeParkId),
+        fetchEdges(activeParkId),
+        activeParkId === "central_park" ? loadCentralParkZooBoundary() : Promise.resolve([])
       ]);
 
       if (!cancelled) {
-        setNodes(removeCentralParkZooNodes(nodeData, zooAreas));
+        setNodes(activeParkId === "central_park" ? removeCentralParkZooNodes(nodeData, restrictedAreas) : nodeData);
         setEdges(edgeData);
+        setAppStatus(`${activeParkName} loaded.`);
       }
     }
+    setNodes(null);
+    setEdges(null);
     load().catch((error) => {
       console.error(error);
       if (!cancelled) {
         setMessages((prev) => [
           ...prev,
-          { role: "assistant", text: "Failed to load backend data. Make sure backend is running and app_data exists." }
+          { role: "assistant", text: `Failed to load ${activeParkName} data. Make sure backend is running and the park data exists.` }
         ]);
-        setAppStatus("Failed to load backend data.");
+        setAppStatus(`Failed to load ${activeParkName} data.`);
       }
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeParkId, activeParkName]);
 
   const filteredFeatures = useMemo(() => {
     if (!nodes) return [];
@@ -1623,7 +1674,7 @@ export default function App() {
   }
 
   async function finalizeRoute(start: RouteSelection, end: RouteSelection) {
-    const payload = selectionToRouteRequest(start, end);
+    const payload = selectionToRouteRequest(start, end, activeParkIdRef.current);
     const route: RouteResponse = await fetchRoute(payload);
     applyRoute(route);
     setPlanStops(route.stop_sequence ?? []);
@@ -1727,6 +1778,42 @@ export default function App() {
     setFusionStatus("Vision is off. Map navigation is ready.");
     routeSpeechRef.current = "";
     addAssistantMessage("Route cleared. Search a place or tap the map for start.", false);
+  }
+
+  function handleParkChange(nextParkId: ParkId) {
+    if (nextParkId === activeParkIdRef.current) return;
+    stopNavigation(true);
+    startSelectionRef.current = null;
+    endSelectionRef.current = null;
+    routeEndInfoRef.current = null;
+    routeCoordsRef.current = null;
+    routeBeaconPlanRef.current = null;
+    beaconPlanRef.current = null;
+    setActiveParkId(nextParkId);
+    setSearch("");
+    setStartSelection(null);
+    setEndSelection(null);
+    setRouteCoords(null);
+    setRouteBeaconPlan(null);
+    setRouteSummary("");
+    setRouteDescription("");
+    setPathNodes([]);
+    setRouteStartInfo(null);
+    setRouteEndInfo(null);
+    setPlanStops([]);
+    setLegSummaries([]);
+    setCurrentLocation(null);
+    setNavigationPrompt("");
+    updateRouteRecoveryStatus(emptyRouteRecoveryStatus());
+    setFusionStatus("Vision is off. Map navigation is ready.");
+    setAudioBeaconDebug({
+      ...emptyAudioBeaconDebug(),
+      beaconEnabled: audioBeaconEnabledRef.current,
+      navigationRunning: false
+    });
+    const nextName = parkOptions.find((park) => park.park_id === nextParkId)?.name ?? "NYC Park";
+    addAssistantMessage(`${nextName} selected. Search or tap the map for start.`, false);
+    setAppStatus(`${nextName} selected.`);
   }
 
   function currentPointForChat() {
@@ -2043,7 +2130,7 @@ export default function App() {
     setAppStatus(`Request sent: ${text}`);
     setChatInput("");
     try {
-      const response: ChatResponse = await sendChat(text, currentPointForChat(), planStops);
+      const response: ChatResponse = await sendChat(text, activeParkIdRef.current, currentPointForChat(), planStops);
       addAssistantMessage(response.reply);
 
       if (response.plan_stops) {
@@ -2113,11 +2200,13 @@ export default function App() {
         {appStatus}
       </div>
 
-      <main className="map-shell" aria-label="Central Park map">
+      <main className="map-shell" aria-label={`${activeParkName} map`}>
         <TopBar
           search={search}
           setSearch={setSearch}
           results={searchResults}
+          activeParkId={activeParkId}
+          parkOptions={parkOptions}
           voiceEnabled={voiceEnabled}
           gpsEnabled={gpsEnabled}
           hasRoute={Boolean(routeSummary)}
@@ -2125,6 +2214,7 @@ export default function App() {
           isNavigating={isNavigating}
           startLabel={startDisplayLabel}
           onResultSelect={handleNodeClick}
+          onParkChange={handleParkChange}
           onUseCurrentLocation={handleUseCurrentLocation}
           onSpeakRoute={handleSpeakRoute}
           onStopSpeaking={handleStopSpeaking}
@@ -2135,6 +2225,7 @@ export default function App() {
           onOpenVisionTest={openVisionPanel}
         />
         <MapView
+          center={activeParkCenter}
           edges={edges}
           filteredFeatures={mapFeatures}
           routeCoords={displayRouteCoords}

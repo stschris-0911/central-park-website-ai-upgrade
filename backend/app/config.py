@@ -7,7 +7,7 @@ DATA_DIR = PROJECT_ROOT / "data" / "app_data"
 FRONTEND_DIST_DIR = PROJECT_ROOT / "frontend" / "dist"
 VISION_MODEL_DIR = BACKEND_DIR / "app" / "models" / "vision"
 
-APP_TITLE = "Central Park Navigation API"
+APP_TITLE = "NYC Park Navigation API"
 DEFAULT_ALLOW_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",

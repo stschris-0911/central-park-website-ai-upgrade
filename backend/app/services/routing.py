@@ -9,7 +9,14 @@ from pyproj import Transformer
 from shapely.ops import transform as shapely_transform
 
 from app.models import LegSummary, PlanStop, RouteEndpointInfo, RoutePathNode, RoutePoint, RouteResponse, RouteSummary
-from app.services.data_loader import find_node_by_id, get_node_index, load_graph, load_manifest
+from app.services.data_loader import (
+    find_node_by_id,
+    get_node_index,
+    get_park_data_dir,
+    load_graph,
+    load_manifest,
+    normalize_park_id,
+)
 
 
 def _is_lonlat_pair(x: float, y: float) -> bool:
@@ -31,7 +38,7 @@ def _estimate_minutes(distance_m: float) -> int:
     return max(1, round(distance_m / 80.0))
 
 
-def _graph_crs(graph) -> str | None:
+def _graph_crs(graph, park_id: str | None = None) -> str | None:
     graph_crs = None
     try:
         graph_crs = graph.graph.get("crs")
@@ -39,7 +46,7 @@ def _graph_crs(graph) -> str | None:
         graph_crs = None
     if graph_crs:
         return str(graph_crs)
-    manifest = load_manifest()
+    manifest = load_manifest(park_id)
     if manifest.get("graph_crs"):
         return str(manifest["graph_crs"])
     return None
@@ -492,8 +499,8 @@ def _nearest_graph_node(graph, lon: float, lat: float, transformer=None):
     return best_id, best_point, best_dist
 
 
-def _node_path_metadata(path: list[Any], graph, transformer=None) -> list[RoutePathNode]:
-    node_index = get_node_index()
+def _node_path_metadata(path: list[Any], graph, transformer=None, park_id: str | None = None) -> list[RoutePathNode]:
+    node_index = get_node_index(park_id)
     results: list[RoutePathNode] = []
     for node_id in path:
         attrs = dict(graph.nodes.get(node_id, {}))
@@ -551,31 +558,37 @@ from pathlib import Path as _Path
 import json as _json
 
 
-_ZOO_BOUNDARY_CACHE = None
+_RESTRICTED_AREA_CACHE = {}
 
 
-def _load_zoo_restricted_areas():
-    global _ZOO_BOUNDARY_CACHE
+def _load_restricted_areas(park_id: str | None = None):
+    normalized_park_id = normalize_park_id(park_id)
 
-    if _ZOO_BOUNDARY_CACHE is not None:
-        return _ZOO_BOUNDARY_CACHE
+    if normalized_park_id in _RESTRICTED_AREA_CACHE:
+        return _RESTRICTED_AREA_CACHE[normalized_park_id]
 
-    candidates = [
-        _Path(__file__).resolve().parents[3] / "frontend" / "public" / "restricted_areas" / "central_park_zoo.geojson",
-        _Path(__file__).resolve().parents[3] / "data" / "app_data" / "restricted_areas" / "central_park_zoo.geojson",
-    ]
+    candidates = []
+    data_restricted_dir = get_park_data_dir(normalized_park_id) / "restricted_areas"
+    if data_restricted_dir.exists():
+        candidates.extend(sorted(data_restricted_dir.glob("*.geojson")))
+
+    if normalized_park_id == "central_park":
+        candidates.append(
+            _Path(__file__).resolve().parents[3] / "frontend" / "public" / "restricted_areas" / "central_park_zoo.geojson"
+        )
 
     for p in candidates:
         if p.exists():
             try:
                 data = _json.loads(p.read_text(encoding="utf-8"))
-                _ZOO_BOUNDARY_CACHE = data.get("features", [])
-                return _ZOO_BOUNDARY_CACHE
+                features = data.get("features", [])
+                _RESTRICTED_AREA_CACHE[normalized_park_id] = features
+                return features
             except Exception:
                 pass
 
-    _ZOO_BOUNDARY_CACHE = []
-    return _ZOO_BOUNDARY_CACHE
+    _RESTRICTED_AREA_CACHE[normalized_park_id] = []
+    return _RESTRICTED_AREA_CACHE[normalized_park_id]
 
 
 def _point_in_ring_lonlat(point, ring):
@@ -595,10 +608,10 @@ def _point_in_ring_lonlat(point, ring):
     return inside
 
 
-def _point_in_zoo_lonlat(lonlat):
+def _point_in_restricted_area_lonlat(lonlat, park_id: str | None = None):
     lon, lat = lonlat
 
-    for feature in _load_zoo_restricted_areas():
+    for feature in _load_restricted_areas(park_id):
         geom = feature.get("geometry", {})
         gtype = geom.get("type")
 
@@ -658,8 +671,8 @@ def _line_touches_ring(line, ring):
     return False
 
 
-def _line_touches_zoo_lonlat(line):
-    for feature in _load_zoo_restricted_areas():
+def _line_touches_restricted_area_lonlat(line, park_id: str | None = None):
+    for feature in _load_restricted_areas(park_id):
         geom = feature.get("geometry", {})
         gtype = geom.get("type")
 
@@ -676,7 +689,7 @@ def _line_touches_zoo_lonlat(line):
     return False
 
 
-def _zoo_filtered_graph(graph, transformer):
+def _restricted_area_filtered_graph(graph, transformer, park_id: str | None = None):
     filtered = graph.copy()
 
     nodes_to_remove = []
@@ -684,7 +697,7 @@ def _zoo_filtered_graph(graph, transformer):
     for node_id, attrs in list(filtered.nodes(data=True)):
         coord = _graph_node_lonlat(attrs, transformer)
 
-        if coord and _point_in_zoo_lonlat(coord):
+        if coord and _point_in_restricted_area_lonlat(coord, park_id):
             nodes_to_remove.append(node_id)
 
     filtered.remove_nodes_from(nodes_to_remove)
@@ -701,7 +714,7 @@ def _zoo_filtered_graph(graph, transformer):
         edge_attrs = _get_edge_attrs(attrs) or attrs
         segment = _edge_coords_lonlat(edge_attrs, transformer) or [u_coord, v_coord]
 
-        if _line_touches_zoo_lonlat(segment):
+        if _line_touches_restricted_area_lonlat(segment, park_id):
             edges_to_remove.append((u, v))
 
     filtered.remove_edges_from(edges_to_remove)
@@ -710,13 +723,13 @@ def _zoo_filtered_graph(graph, transformer):
 
 
 
-def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float, float], start_info: RouteEndpointInfo, end_info: RouteEndpointInfo) -> RouteResponse | None:
-    graph = load_graph()
+def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float, float], start_info: RouteEndpointInfo, end_info: RouteEndpointInfo, park_id: str) -> RouteResponse | None:
+    graph = load_graph(park_id)
     if graph is None or len(graph.nodes) == 0:
         return None
 
-    transformer = _make_transformer(_graph_crs(graph))
-    graph = _zoo_filtered_graph(graph, transformer)
+    transformer = _make_transformer(_graph_crs(graph, park_id))
+    graph = _restricted_area_filtered_graph(graph, transformer, park_id)
     if graph is None or len(graph.nodes) == 0:
         return None
     graph = _drop_inconsistent_edges(graph, transformer)
@@ -815,6 +828,7 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
     description = f"Route follows the accessibility-weighted walkable graph from {start_info.label} to {end_info.label}."
 
     return RouteResponse(
+        park_id=park_id,
         mode="graph",
         route_geojson={
             "type": "Feature",
@@ -824,16 +838,17 @@ def _route_from_graph(start_lonlat: tuple[float, float], end_lonlat: tuple[float
         summary=RouteSummary(distance_m=round(total_m, 2), estimated_minutes=_estimate_minutes(total_m), description=description),
         start=start_info,
         end=end_info,
-        path_nodes=_node_path_metadata(path, graph, transformer),
+        path_nodes=_node_path_metadata(path, graph, transformer, park_id),
         stop_sequence=[_endpoint_to_stop(start_info), _endpoint_to_stop(end_info)],
         leg_summaries=[LegSummary(order=1, start_label=start_info.label, end_label=end_info.label, distance_m=round(total_m, 2), estimated_minutes=_estimate_minutes(total_m))],
     )
 
 
-def _straight_line_route(start_lonlat: tuple[float, float], end_lonlat: tuple[float, float], start_info: RouteEndpointInfo, end_info: RouteEndpointInfo) -> RouteResponse:
+def _straight_line_route(start_lonlat: tuple[float, float], end_lonlat: tuple[float, float], start_info: RouteEndpointInfo, end_info: RouteEndpointInfo, park_id: str) -> RouteResponse:
     distance_m = _meters_from_lonlat(start_lonlat, end_lonlat)
     description = f"Fallback straight-line preview from {start_info.label} to {end_info.label}. Add a valid graph to follow the walkable network."
     return RouteResponse(
+        park_id=park_id,
         mode="straight_line",
         route_geojson={
             "type": "Feature",
@@ -924,7 +939,8 @@ def _point_from_any(value: Any) -> RoutePoint | None:
     return None
 
 
-def compute_route(start_node_id: str | None = None, end_node_id: str | None = None, start_point: RoutePoint | None = None, end_point: RoutePoint | None = None, strict_walkable: bool = False) -> RouteResponse:
+def compute_route(start_node_id: str | None = None, end_node_id: str | None = None, start_point: RoutePoint | None = None, end_point: RoutePoint | None = None, strict_walkable: bool = False, park_id: str | None = None) -> RouteResponse:
+    normalized_park_id = normalize_park_id(park_id)
     start_point = _point_from_any(start_point)
     end_point = _point_from_any(end_point)
 
@@ -932,7 +948,7 @@ def compute_route(start_node_id: str | None = None, end_node_id: str | None = No
         raise ValueError("Provide either node ids or lon/lat points for both route endpoints.")
 
     if start_node_id:
-        start_feature = find_node_by_id(start_node_id)
+        start_feature = find_node_by_id(start_node_id, normalized_park_id)
         if start_feature is None:
             raise ValueError(f"Start node '{start_node_id}' was not found.")
         start_lonlat = _feature_lonlat(start_feature)
@@ -943,7 +959,7 @@ def compute_route(start_node_id: str | None = None, end_node_id: str | None = No
         start_info = _point_to_endpoint(start_point, "Start point")
 
     if end_node_id:
-        end_feature = find_node_by_id(end_node_id)
+        end_feature = find_node_by_id(end_node_id, normalized_park_id)
         if end_feature is None:
             raise ValueError(f"End node '{end_node_id}' was not found.")
         end_lonlat = _feature_lonlat(end_feature)
@@ -953,7 +969,7 @@ def compute_route(start_node_id: str | None = None, end_node_id: str | None = No
         end_lonlat = (float(end_point.lon), float(end_point.lat))
         end_info = _point_to_endpoint(end_point, "Destination point")
 
-    graph_result = _route_from_graph(start_lonlat, end_lonlat, start_info, end_info)
+    graph_result = _route_from_graph(start_lonlat, end_lonlat, start_info, end_info, normalized_park_id)
     if graph_result is not None:
         return graph_result
 
@@ -962,10 +978,11 @@ def compute_route(start_node_id: str | None = None, end_node_id: str | None = No
             f"Could not compute a strict walkable segment from {start_info.label} to {end_info.label}."
         )
 
-    return _straight_line_route(start_lonlat, end_lonlat, start_info, end_info)
+    return _straight_line_route(start_lonlat, end_lonlat, start_info, end_info, normalized_park_id)
 
 
-def compute_multi_stop_route(start_node_id: str | None = None, start_point: RoutePoint | None = None, plan_stops: list[PlanStop] | None = None) -> RouteResponse:
+def compute_multi_stop_route(start_node_id: str | None = None, start_point: RoutePoint | None = None, plan_stops: list[PlanStop] | None = None, park_id: str | None = None) -> RouteResponse:
+    normalized_park_id = normalize_park_id(park_id)
     stops = plan_stops or []
     if not stops:
         raise ValueError("No planned stops were provided.")
@@ -996,6 +1013,7 @@ def compute_multi_stop_route(start_node_id: str | None = None, start_point: Rout
                     start_point=current_point,
                     end_node_id=stop.node_id,
                     strict_walkable=True,
+                    park_id=normalized_park_id,
                 )
             else:
                 segment = compute_route(
@@ -1003,11 +1021,12 @@ def compute_multi_stop_route(start_node_id: str | None = None, start_point: Rout
                     start_point=current_point,
                     end_point=stop_point,
                     strict_walkable=True,
+                    park_id=normalized_park_id,
                 )
         except Exception as exc:
             start_label = None
             if current_node_id:
-                f = find_node_by_id(current_node_id)
+                f = find_node_by_id(current_node_id, normalized_park_id)
                 if f is not None:
                     start_label = _feature_to_endpoint(f).label
             if start_label is None and current_point is not None:
@@ -1056,6 +1075,7 @@ def compute_multi_stop_route(start_node_id: str | None = None, start_point: Rout
     description = " → ".join(stop.label for stop in stop_sequence) if stop_sequence else "Multi-stop route"
 
     return RouteResponse(
+        park_id=normalized_park_id,
         mode="multi_stop_walkable",
         route_geojson={
             "type": "Feature",

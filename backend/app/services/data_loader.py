@@ -8,16 +8,80 @@ from typing import Any
 
 from app.config import DATA_DIR
 
-NODES_CANDIDATES = [
-    DATA_DIR / "final_candidate_nodes_gridcoded.geojson",
-    DATA_DIR / "final_candidate_nodes.geojson",
-]
-EDGES_CANDIDATES = [
-    DATA_DIR / "augmented_graph_edges.geojson",
-    DATA_DIR / "graph_edges.geojson",
-]
-GRAPH_PATH = DATA_DIR / "park_graph.pkl"
-MANIFEST_PATH = DATA_DIR / "app_manifest.json"
+DEFAULT_PARK_ID = "central_park"
+PARK_DATA_DIRS = {
+    "central_park": DATA_DIR,
+    "prospect_park": DATA_DIR.parent / "prospect_park_app_data",
+}
+PARK_NAMES = {
+    "central_park": "Central Park",
+    "prospect_park": "Prospect Park",
+}
+
+
+def normalize_park_id(park_id: str | None = None) -> str:
+    text = (park_id or DEFAULT_PARK_ID).strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "central": "central_park",
+        "centralpark": "central_park",
+        "central_park": "central_park",
+        "prospect": "prospect_park",
+        "prospectpark": "prospect_park",
+        "prospect_park": "prospect_park",
+    }
+    normalized = aliases.get(text, text)
+    if normalized not in PARK_DATA_DIRS:
+        raise ValueError(f"Unsupported park_id '{park_id}'.")
+    return normalized
+
+
+def get_park_data_dir(park_id: str | None = None) -> Path:
+    return PARK_DATA_DIRS[normalize_park_id(park_id)]
+
+
+def get_park_name(park_id: str | None = None) -> str:
+    return PARK_NAMES.get(normalize_park_id(park_id), "NYC Park")
+
+
+def list_parks() -> list[dict[str, Any]]:
+    rows = []
+    for park_id, data_dir in PARK_DATA_DIRS.items():
+        manifest = load_manifest(park_id)
+        rows.append(
+            {
+                "park_id": park_id,
+                "name": str(manifest.get("park") or PARK_NAMES.get(park_id) or park_id),
+                "available": data_dir.exists() and any(data_dir.glob("*.geojson")),
+                "data_dir": str(data_dir),
+                "center": manifest.get("center"),
+                "bounds": manifest.get("bounds"),
+            }
+        )
+    return rows
+
+
+def _nodes_candidates(park_id: str | None = None) -> list[Path]:
+    data_dir = get_park_data_dir(park_id)
+    return [
+        data_dir / "final_candidate_nodes_gridcoded.geojson",
+        data_dir / "final_candidate_nodes.geojson",
+    ]
+
+
+def _edges_candidates(park_id: str | None = None) -> list[Path]:
+    data_dir = get_park_data_dir(park_id)
+    return [
+        data_dir / "augmented_graph_edges.geojson",
+        data_dir / "graph_edges.geojson",
+    ]
+
+
+def _graph_path(park_id: str | None = None) -> Path:
+    return get_park_data_dir(park_id) / "park_graph.pkl"
+
+
+def _manifest_path(park_id: str | None = None) -> Path:
+    return get_park_data_dir(park_id) / "app_manifest.json"
 
 
 def _load_first_json(paths: list[Path]) -> dict[str, Any]:
@@ -27,32 +91,34 @@ def _load_first_json(paths: list[Path]) -> dict[str, Any]:
     return {"type": "FeatureCollection", "features": []}
 
 
-@lru_cache(maxsize=1)
-def load_nodes_geojson() -> dict[str, Any]:
-    return _load_first_json(NODES_CANDIDATES)
+@lru_cache(maxsize=8)
+def load_nodes_geojson(park_id: str | None = None) -> dict[str, Any]:
+    return _load_first_json(_nodes_candidates(park_id))
 
 
-@lru_cache(maxsize=1)
-def load_edges_geojson() -> dict[str, Any]:
-    return _load_first_json(EDGES_CANDIDATES)
+@lru_cache(maxsize=8)
+def load_edges_geojson(park_id: str | None = None) -> dict[str, Any]:
+    return _load_first_json(_edges_candidates(park_id))
 
 
-@lru_cache(maxsize=1)
-def load_manifest() -> dict[str, Any]:
-    if MANIFEST_PATH.exists():
+@lru_cache(maxsize=8)
+def load_manifest(park_id: str | None = None) -> dict[str, Any]:
+    manifest_path = _manifest_path(park_id)
+    if manifest_path.exists():
         try:
-            return json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+            return json.loads(manifest_path.read_text(encoding="utf-8"))
         except Exception:
             return {}
     return {}
 
 
-@lru_cache(maxsize=1)
-def load_graph():
-    if not GRAPH_PATH.exists():
+@lru_cache(maxsize=8)
+def load_graph(park_id: str | None = None):
+    graph_path = _graph_path(park_id)
+    if not graph_path.exists():
         return None
     try:
-        with open(GRAPH_PATH, "rb") as f:
+        with open(graph_path, "rb") as f:
             return pickle.load(f)
     except Exception:
         return None
@@ -157,24 +223,26 @@ def feature_to_candidate(feature: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@lru_cache(maxsize=1)
-def load_poi_candidates() -> list[dict[str, Any]]:
+@lru_cache(maxsize=8)
+def load_poi_candidates(park_id: str | None = None) -> list[dict[str, Any]]:
+    normalized_park_id = normalize_park_id(park_id)
     results: list[dict[str, Any]] = []
-    for feature in load_nodes_geojson().get("features", []):
+    for feature in load_nodes_geojson(normalized_park_id).get("features", []):
         try:
             candidate = feature_to_candidate(feature)
             if candidate["lat"] is not None and candidate["lon"] is not None:
+                candidate["park_id"] = normalized_park_id
                 results.append(candidate)
         except Exception:
             continue
     return results
 
 
-def find_node_by_id(node_id: str) -> dict[str, Any] | None:
+def find_node_by_id(node_id: str, park_id: str | None = None) -> dict[str, Any] | None:
     if not node_id:
         return None
     target = str(node_id)
-    for feature in load_nodes_geojson().get("features", []):
+    for feature in load_nodes_geojson(park_id).get("features", []):
         props = feature.get("properties", {})
         if str(props.get("node_id", "")) == target:
             return feature
@@ -183,9 +251,9 @@ def find_node_by_id(node_id: str) -> dict[str, Any] | None:
     return None
 
 
-def get_node_index() -> dict[str, dict[str, Any]]:
+def get_node_index(park_id: str | None = None) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
-    for feature in load_nodes_geojson().get("features", []):
+    for feature in load_nodes_geojson(park_id).get("features", []):
         props = feature.get("properties", {})
         for key in [props.get("node_id"), props.get("grid_node_code")]:
             if key is not None:

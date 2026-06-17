@@ -1,0 +1,93 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9735,
+          40.665
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_RESTROOM_001",
+        "grid_node_code": "PP_POI_RESTROOM_001",
+        "display_name": "Restroom near Picnic House",
+        "node_type": "poi",
+        "node_subtype": "restroom",
+        "display_group": "restroom",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "restroom",
+        "infra_class": "restroom",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9706,
+          40.6635
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_WATER_001",
+        "grid_node_code": "PP_POI_WATER_001",
+        "display_name": "Water fountain near Bandshell",
+        "node_type": "poi",
+        "node_subtype": "water",
+        "display_group": "water",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "water",
+        "infra_class": "water",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9658,
+          40.6608
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_INFO_001",
+        "grid_node_code": "PP_POI_INFO_001",
+        "display_name": "Boathouse landmark",
+        "node_type": "poi",
+        "node_subtype": "info",
+        "display_group": "info",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "info",
+        "infra_class": "info",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9654,
+          40.665
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_RECREATION_001",
+        "grid_node_code": "PP_POI_RECREATION_001",
+        "display_name": "Zoo area",
+        "node_type": "poi",
+        "node_subtype": "recreation",
+        "display_group": "recreation",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "recreation",
+        "infra_class": "recreation",
+        "park_id": "prospect_park"
+      }
+    }
+  ]
+}

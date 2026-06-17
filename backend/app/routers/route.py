@@ -14,6 +14,7 @@ def route(request: RouteRequest):
             start_point=request.start_point,
             end_point=request.end_point,
             strict_walkable=request.strict_walkable,
+            park_id=request.park_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -1,6 +1,8 @@
 import type {
   ChatResponse,
   GeoJSONFeatureCollection,
+  ParkId,
+  ParkOption,
   PlanStop,
   RoutePoint,
   RouteRequest,
@@ -22,16 +24,28 @@ async function asJson<T>(response: Response, fallbackMessage: string): Promise<T
   return response.json();
 }
 
-export async function fetchNodes(): Promise<GeoJSONFeatureCollection> {
+export async function fetchParks(): Promise<ParkOption[]> {
+  const payload = await asJson<{ parks: ParkOption[] }>(
+    await fetch(apiUrl("/parks")),
+    "Failed to fetch parks"
+  );
+  return payload.parks;
+}
+
+function parkQuery(parkId: ParkId): string {
+  return `?park_id=${encodeURIComponent(parkId)}`;
+}
+
+export async function fetchNodes(parkId: ParkId): Promise<GeoJSONFeatureCollection> {
   return asJson<GeoJSONFeatureCollection>(
-    await fetch(apiUrl("/nodes")),
+    await fetch(apiUrl(`/nodes${parkQuery(parkId)}`)),
     "Failed to fetch nodes"
   );
 }
 
-export async function fetchEdges(): Promise<GeoJSONFeatureCollection> {
+export async function fetchEdges(parkId: ParkId): Promise<GeoJSONFeatureCollection> {
   return asJson<GeoJSONFeatureCollection>(
-    await fetch(apiUrl("/edges")),
+    await fetch(apiUrl(`/edges${parkQuery(parkId)}`)),
     "Failed to fetch edges"
   );
 }
@@ -49,6 +63,7 @@ export async function fetchRoute(payload: RouteRequest): Promise<RouteResponse> 
 
 export async function sendChat(
   message: string,
+  parkId: ParkId,
   currentPoint?: RoutePoint | null,
   currentPlan?: PlanStop[]
 ): Promise<ChatResponse> {
@@ -57,6 +72,7 @@ export async function sendChat(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        park_id: parkId,
         message,
         current_point: currentPoint ?? null,
         current_plan: currentPlan ?? []

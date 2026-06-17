@@ -5,6 +5,7 @@ import type { GeoJSONFeature, GeoJSONFeatureCollection } from "../lib/types";
 import { colorForCategory, getNodeCode, getNodeDescription, getNodeLabel, normalizeCategory } from "../lib/utils";
 
 type Props = {
+  center: [number, number];
   edges: GeoJSONFeatureCollection | null;
   filteredFeatures: GeoJSONFeature[];
   routeCoords: [number, number][] | null;
@@ -99,6 +100,7 @@ function MapTapHandler({ onMapClick }: { onMapClick: (lat: number, lon: number) 
 }
 
 function MapView({
+  center,
   edges,
   filteredFeatures,
   routeCoords,
@@ -117,7 +119,8 @@ function MapView({
   return (
     <div className="map-accessibility-layer" aria-hidden="true">
       <MapContainer
-        center={[40.7736, -73.9718]}
+        center={center}
+        key={`${center[0]}-${center[1]}`}
         zoom={15}
         className="map-root"
         preferCanvas

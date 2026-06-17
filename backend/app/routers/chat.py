@@ -15,6 +15,7 @@ def chat(request: ChatRequest) -> ChatResponse:
             request.message,
             current_point=request.current_point,
             current_plan=request.current_plan,
+            park_id=request.park_id,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -97,9 +97,9 @@ def fuzzy_match_score(query: str, text: str) -> float:
     return float(max(score_1, score_2, score_3))
 
 
-def search_destination_fuzzy(query: str, top_k: int = 8, min_score: float = 40.0) -> list[dict[str, Any]]:
+def search_destination_fuzzy(query: str, top_k: int = 8, min_score: float = 40.0, park_id: str | None = None) -> list[dict[str, Any]]:
     rows = []
-    for row in load_poi_candidates():
+    for row in load_poi_candidates(park_id):
         score = fuzzy_match_score(
             query,
             f"{row.get('label','')} | {row.get('search_text','')} | {row.get('description','')}",
@@ -171,7 +171,7 @@ def _call_openrouter_json(messages: list[dict[str, str]]) -> dict[str, Any]:
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
         "HTTP-Referer": "http://localhost",
-        "X-OpenRouter-Title": "Central Park AI Navigation",
+        "X-OpenRouter-Title": "NYC Park AI Navigation",
     }
     payload = {
         "model": OPENROUTER_MODEL,
@@ -225,8 +225,8 @@ Candidates:
     )
 
 
-def resolve_destination_query_hybrid(user_query: str, top_k: int = 5, direct_threshold: float = 95.0) -> dict[str, Any]:
-    candidates = search_destination_fuzzy(user_query, top_k=top_k)
+def resolve_destination_query_hybrid(user_query: str, top_k: int = 5, direct_threshold: float = 95.0, park_id: str | None = None) -> dict[str, Any]:
+    candidates = search_destination_fuzzy(user_query, top_k=top_k, park_id=park_id)
     if not candidates:
         return {"status": "reject", "message": "No destination match found."}
 
@@ -288,6 +288,7 @@ def _needs_append(message: str) -> bool:
 def _pick_nearest_reachable_by_rows(
     cursor_point: RoutePoint,
     rows: list[dict[str, Any]],
+    park_id: str | None = None,
     top_k: int = 8,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     candidates = []
@@ -312,6 +313,7 @@ def _pick_nearest_reachable_by_rows(
                 start_point=cursor_point,
                 end_point=RoutePoint(lon=float(row["lon"]), lat=float(row["lat"])),
                 strict_walkable=True,
+                park_id=park_id,
             )
             route_dist = float(route.summary.distance_m)
             row["match_score"] = max(0.0, 100000.0 - route_dist) / 1000.0
@@ -327,19 +329,21 @@ def _pick_nearest_reachable_by_rows(
 def _find_nearest_by_category(
     current_point: RoutePoint,
     category: str,
+    park_id: str | None = None,
     limit: int = 8,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     rows = []
-    for row in load_poi_candidates():
+    for row in load_poi_candidates(park_id):
         if row.get("category") == category and row.get("lat") is not None and row.get("lon") is not None:
             rows.append(row)
-    return _pick_nearest_reachable_by_rows(current_point, rows, top_k=limit)
+    return _pick_nearest_reachable_by_rows(current_point, rows, park_id=park_id, top_k=limit)
 
 
 def _pick_reachable_fuzzy_match(
     current_point: RoutePoint | None,
     query: str,
     rows: list[dict[str, Any]],
+    park_id: str | None = None,
     top_k: int = 6,
 ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     if current_point is None:
@@ -354,6 +358,7 @@ def _pick_reachable_fuzzy_match(
                 start_point=current_point,
                 end_point=RoutePoint(lon=float(row["lon"]), lat=float(row["lat"])),
                 strict_walkable=True,
+                park_id=park_id,
             )
             route_dist = float(route.summary.distance_m)
             score = float(row.get("match_score", 0.0))
@@ -371,7 +376,7 @@ def _pick_reachable_fuzzy_match(
     return chosen, preview
 
 
-def _resolve_single_stop(segment: str, cursor_point: RoutePoint | None) -> dict[str, Any]:
+def _resolve_single_stop(segment: str, cursor_point: RoutePoint | None, park_id: str | None = None) -> dict[str, Any]:
     category_hint = resolve_query_to_category(segment)
     lower = normalize_text(segment)
     wants_nearest = "nearest" in lower or any(token in lower for token in ["最近", "closest"]) or category_hint["status"] == "selected"
@@ -379,7 +384,7 @@ def _resolve_single_stop(segment: str, cursor_point: RoutePoint | None) -> dict[
     if category_hint["status"] == "selected" and wants_nearest:
         if cursor_point is None:
             return {"status": "need_start", "message": f"I need a start point before I can find the nearest {category_hint['category']}."}
-        best, preview_rows = _find_nearest_by_category(cursor_point, category_hint["category"])
+        best, preview_rows = _find_nearest_by_category(cursor_point, category_hint["category"], park_id=park_id)
         if best is None:
             return {
                 "status": "reject",
@@ -392,7 +397,7 @@ def _resolve_single_stop(segment: str, cursor_point: RoutePoint | None) -> dict[
             "method": "nearest_reachable_category",
         }
 
-    resolved = resolve_destination_query_hybrid(segment)
+    resolved = resolve_destination_query_hybrid(segment, park_id=park_id)
     if resolved["status"] != "selected":
         return resolved
 
@@ -400,6 +405,7 @@ def _resolve_single_stop(segment: str, cursor_point: RoutePoint | None) -> dict[
         cursor_point,
         segment,
         resolved.get("candidates", []),
+        park_id=park_id,
         top_k=6,
     )
     if chosen is None:
@@ -426,7 +432,7 @@ def _append_plan(existing: list[PlanStop], new_stops: list[PlanStop], replace: b
     return merged
 
 
-def handle_chat(message: str, current_point: RoutePoint | None = None, current_plan: list[PlanStop] | None = None) -> ChatResponse:
+def handle_chat(message: str, current_point: RoutePoint | None = None, current_plan: list[PlanStop] | None = None, park_id: str | None = None) -> ChatResponse:
     text = (message or "").strip()
     lower = normalize_text(text)
     plan = list(current_plan or [])
@@ -443,7 +449,7 @@ def handle_chat(message: str, current_point: RoutePoint | None = None, current_p
         route = None
         if current_point is not None:
             try:
-                route = compute_multi_stop_route(start_point=current_point, plan_stops=plan)
+                route = compute_multi_stop_route(start_point=current_point, plan_stops=plan, park_id=park_id)
             except Exception:
                 route = None
         return ChatResponse(reply=f"Current trip: {_format_plan(plan)}", intent="show_plan", plan_stops=plan, route=route)
@@ -476,7 +482,7 @@ def handle_chat(message: str, current_point: RoutePoint | None = None, current_p
         cursor_point = current_point
 
     for segment in segments:
-        resolved = _resolve_single_stop(segment, cursor_point)
+        resolved = _resolve_single_stop(segment, cursor_point, park_id=park_id)
 
         if resolved["status"] == "need_start":
             planned = _append_plan(plan, new_stops, replace_plan)
@@ -533,7 +539,7 @@ def handle_chat(message: str, current_point: RoutePoint | None = None, current_p
             plan_action="replaced" if replace_plan else "appended",
         )
 
-    route = compute_multi_stop_route(start_point=current_point, plan_stops=final_plan)
+    route = compute_multi_stop_route(start_point=current_point, plan_stops=final_plan, park_id=park_id)
     return ChatResponse(
         reply=f"I planned {len(final_plan)} stop(s) and prepared one continuous walkable route: {_format_plan(final_plan)}.",
         intent="multi_stop_route",

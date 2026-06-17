@@ -1,0 +1,31 @@
+{
+  "park": "Prospect Park",
+  "park_id": "prospect_park",
+  "nodes_geojson": "final_candidate_nodes_gridcoded.geojson",
+  "infra_geojson": "infrastructure_nodes_gridcoded.geojson",
+  "gate_geojson": "gate_nodes_gridcoded.geojson",
+  "edges_geojson": "augmented_graph_edges.geojson",
+  "graph_pickle": "park_graph.pkl",
+  "graph_crs": "EPSG:4326",
+  "center": [
+    40.66343,
+    -73.97063
+  ],
+  "bounds": [
+    [
+      40.6539,
+      -73.9801
+    ],
+    [
+      40.6743,
+      -73.9616
+    ]
+  ],
+  "source": "offline_seed",
+  "notes": "Generated with the same walkable-graph contract used by the NYC Park navigation backend. Replace offline_seed output with Overpass output before real navigation testing.",
+  "counts": {
+    "nodes": 20,
+    "edges": 25,
+    "features": 24
+  }
+}

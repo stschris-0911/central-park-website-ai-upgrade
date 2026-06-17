@@ -1,11 +1,13 @@
 import { useState } from "react";
-import type { GeoJSONFeature } from "../lib/types";
+import type { GeoJSONFeature, ParkId, ParkOption } from "../lib/types";
 import { getNodeCode, getNodeLabel, normalizeCategory } from "../lib/utils";
 
 type Props = {
   search: string;
   setSearch: (value: string) => void;
   results: GeoJSONFeature[];
+  activeParkId: ParkId;
+  parkOptions: ParkOption[];
   voiceEnabled: boolean;
   gpsEnabled: boolean;
   hasRoute: boolean;
@@ -13,6 +15,7 @@ type Props = {
   isNavigating: boolean;
   startLabel: string;
   onResultSelect: (feature: GeoJSONFeature) => void;
+  onParkChange: (parkId: ParkId) => void;
   onUseCurrentLocation: () => void;
   onSpeakRoute: () => void;
   onStopSpeaking: () => void;
@@ -27,6 +30,8 @@ export default function TopBar({
   search,
   setSearch,
   results,
+  activeParkId,
+  parkOptions,
   voiceEnabled,
   gpsEnabled,
   hasRoute,
@@ -34,6 +39,7 @@ export default function TopBar({
   isNavigating,
   startLabel,
   onResultSelect,
+  onParkChange,
   onUseCurrentLocation,
   onSpeakRoute,
   onStopSpeaking,
@@ -50,11 +56,31 @@ export default function TopBar({
   return (
     <header
       className={`topbar ${controlsOpen ? "topbar--controls-open" : "topbar--compact"}`}
-      aria-label="Central Park navigation controls"
+      aria-label="NYC Park navigation controls"
     >
+      <div className="topbar__brand-row">
+        <div className="topbar__brand" aria-label="NYC Park">
+          NYC Park
+        </div>
+        <label className="sr-only" htmlFor="park-select">
+          Select park
+        </label>
+        <select
+          id="park-select"
+          className="topbar__park-select"
+          value={activeParkId}
+          onChange={(event) => onParkChange(event.target.value as ParkId)}
+        >
+          {parkOptions.map((park) => (
+            <option key={park.park_id} value={park.park_id}>
+              {park.name}{park.available === false ? " (data pending)" : ""}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="topbar__search-row" role="search">
         <label className="sr-only" htmlFor="park-search">
-          Search Central Park destinations
+          Search park destinations
         </label>
         <input
           id="park-search"

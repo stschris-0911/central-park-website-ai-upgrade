@@ -1,0 +1,533 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.969,
+          40.6743
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_001",
+        "grid_node_code": "PP00001",
+        "display_name": "Grand Army Plaza entrance",
+        "node_type": "path",
+        "node_subtype": "entrance",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9706,
+          40.6722
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_002",
+        "grid_node_code": "PP00002",
+        "display_name": "Endale Arch",
+        "node_type": "path",
+        "node_subtype": "info",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9718,
+          40.67
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_003",
+        "grid_node_code": "PP00003",
+        "display_name": "Long Meadow north",
+        "node_type": "junction",
+        "node_subtype": "recreation",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.973,
+          40.6669
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_004",
+        "grid_node_code": "PP00004",
+        "display_name": "Long Meadow center",
+        "node_type": "path",
+        "node_subtype": "recreation",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9738,
+          40.6651
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_005",
+        "grid_node_code": "PP00005",
+        "display_name": "Picnic House",
+        "node_type": "junction",
+        "node_subtype": "picnic",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9708,
+          40.6633
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_006",
+        "grid_node_code": "PP00006",
+        "display_name": "Bandshell",
+        "node_type": "junction",
+        "node_subtype": "info",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9718,
+          40.6606
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_007",
+        "grid_node_code": "PP00007",
+        "display_name": "Nethermead",
+        "node_type": "junction",
+        "node_subtype": "recreation",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9658,
+          40.6608
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_008",
+        "grid_node_code": "PP00008",
+        "display_name": "Prospect Park Boathouse",
+        "node_type": "junction",
+        "node_subtype": "info",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9654,
+          40.665
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_009",
+        "grid_node_code": "PP00009",
+        "display_name": "Prospect Park Zoo",
+        "node_type": "path",
+        "node_subtype": "recreation",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9642,
+          40.6685
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_010",
+        "grid_node_code": "PP00010",
+        "display_name": "East Drive north",
+        "node_type": "junction",
+        "node_subtype": "junction",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.963,
+          40.6635
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_011",
+        "grid_node_code": "PP00011",
+        "display_name": "East Drive center",
+        "node_type": "junction",
+        "node_subtype": "junction",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9618,
+          40.6614
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_012",
+        "grid_node_code": "PP00012",
+        "display_name": "Lincoln Road entrance",
+        "node_type": "path",
+        "node_subtype": "entrance",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9616,
+          40.6575
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_013",
+        "grid_node_code": "PP00013",
+        "display_name": "Ocean Avenue entrance",
+        "node_type": "path",
+        "node_subtype": "entrance",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9681,
+          40.6574
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_014",
+        "grid_node_code": "PP00014",
+        "display_name": "Prospect Park Lake north",
+        "node_type": "junction",
+        "node_subtype": "info",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9737,
+          40.6552
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_015",
+        "grid_node_code": "PP00015",
+        "display_name": "Prospect Park Lake west",
+        "node_type": "path",
+        "node_subtype": "info",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9776,
+          40.6539
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_016",
+        "grid_node_code": "PP00016",
+        "display_name": "Parkside Avenue entrance",
+        "node_type": "path",
+        "node_subtype": "entrance",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9801,
+          40.6572
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_017",
+        "grid_node_code": "PP00017",
+        "display_name": "Southwest path",
+        "node_type": "junction",
+        "node_subtype": "junction",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9796,
+          40.6606
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_018",
+        "grid_node_code": "PP00018",
+        "display_name": "Vanderbilt Street entrance",
+        "node_type": "path",
+        "node_subtype": "entrance",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9768,
+          40.6645
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_019",
+        "grid_node_code": "PP00019",
+        "display_name": "West Drive center",
+        "node_type": "junction",
+        "node_subtype": "junction",
+        "display_group": "junction",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "junction",
+        "infra_class": "junction",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9741,
+          40.6707
+        ]
+      },
+      "properties": {
+        "node_id": "PP_SEED_020",
+        "grid_node_code": "PP00020",
+        "display_name": "Third Street entrance",
+        "node_type": "path",
+        "node_subtype": "entrance",
+        "display_group": "path",
+        "description": "Prospect Park offline seed graph node.",
+        "infra_type": "path",
+        "infra_class": "core",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9735,
+          40.665
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_RESTROOM_001",
+        "grid_node_code": "PP_POI_RESTROOM_001",
+        "display_name": "Restroom near Picnic House",
+        "node_type": "poi",
+        "node_subtype": "restroom",
+        "display_group": "restroom",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "restroom",
+        "infra_class": "restroom",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9706,
+          40.6635
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_WATER_001",
+        "grid_node_code": "PP_POI_WATER_001",
+        "display_name": "Water fountain near Bandshell",
+        "node_type": "poi",
+        "node_subtype": "water",
+        "display_group": "water",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "water",
+        "infra_class": "water",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9658,
+          40.6608
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_INFO_001",
+        "grid_node_code": "PP_POI_INFO_001",
+        "display_name": "Boathouse landmark",
+        "node_type": "poi",
+        "node_subtype": "info",
+        "display_group": "info",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "info",
+        "infra_class": "info",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9654,
+          40.665
+        ]
+      },
+      "properties": {
+        "node_id": "PP_POI_RECREATION_001",
+        "grid_node_code": "PP_POI_RECREATION_001",
+        "display_name": "Zoo area",
+        "node_type": "poi",
+        "node_subtype": "recreation",
+        "display_group": "recreation",
+        "description": "Prospect Park offline seed point of interest.",
+        "infra_type": "recreation",
+        "infra_class": "recreation",
+        "park_id": "prospect_park"
+      }
+    }
+  ]
+}

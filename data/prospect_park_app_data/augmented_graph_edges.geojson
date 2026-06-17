@@ -1,0 +1,830 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.969,
+            40.6743
+          ],
+          [
+            -73.9706,
+            40.6722
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_001",
+        "parent_edge_id": "seed",
+        "length_m": 269.69267385463274,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_001",
+        "target": "PP_SEED_002",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9642,
+            40.6685
+          ],
+          [
+            -73.969,
+            40.6743
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_010",
+        "parent_edge_id": "seed",
+        "length_m": 761.4540380802238,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_001",
+        "target": "PP_SEED_010",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9706,
+            40.6722
+          ],
+          [
+            -73.9718,
+            40.67
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_002",
+        "parent_edge_id": "seed",
+        "length_m": 264.736966167669,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_002",
+        "target": "PP_SEED_003",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9718,
+            40.67
+          ],
+          [
+            -73.973,
+            40.6669
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_003",
+        "parent_edge_id": "seed",
+        "length_m": 359.2551213436884,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_003",
+        "target": "PP_SEED_004",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9741,
+            40.6707
+          ],
+          [
+            -73.9718,
+            40.67
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_023",
+        "parent_edge_id": "seed",
+        "length_m": 209.01178514457334,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_003",
+        "target": "PP_SEED_020",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.973,
+            40.6669
+          ],
+          [
+            -73.9738,
+            40.6651
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_004",
+        "parent_edge_id": "seed",
+        "length_m": 211.2184668799428,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_004",
+        "target": "PP_SEED_005",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9738,
+            40.6651
+          ],
+          [
+            -73.9708,
+            40.6633
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_005",
+        "parent_edge_id": "seed",
+        "length_m": 322.62760519029877,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_005",
+        "target": "PP_SEED_006",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9768,
+            40.6645
+          ],
+          [
+            -73.9738,
+            40.6651
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_021",
+        "parent_edge_id": "seed",
+        "length_m": 261.6834001745651,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_005",
+        "target": "PP_SEED_019",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9708,
+            40.6633
+          ],
+          [
+            -73.9718,
+            40.6606
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_006",
+        "parent_edge_id": "seed",
+        "length_m": 311.850215646447,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_006",
+        "target": "PP_SEED_007",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9708,
+            40.6633
+          ],
+          [
+            -73.963,
+            40.6635
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_025",
+        "parent_edge_id": "seed",
+        "length_m": 658.2823094715897,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_006",
+        "target": "PP_SEED_011",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9718,
+            40.6606
+          ],
+          [
+            -73.9658,
+            40.6608
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_007",
+        "parent_edge_id": "seed",
+        "length_m": 506.59081976647116,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_007",
+        "target": "PP_SEED_008",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9718,
+            40.6606
+          ],
+          [
+            -73.9681,
+            40.6574
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_024",
+        "parent_edge_id": "seed",
+        "length_m": 473.3072440578036,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_007",
+        "target": "PP_SEED_014",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9658,
+            40.6608
+          ],
+          [
+            -73.9654,
+            40.665
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_008",
+        "parent_edge_id": "seed",
+        "length_m": 468.23581890212256,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_008",
+        "target": "PP_SEED_009",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9681,
+            40.6574
+          ],
+          [
+            -73.9658,
+            40.6608
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_015",
+        "parent_edge_id": "seed",
+        "length_m": 424.93711634127766,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_008",
+        "target": "PP_SEED_014",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9654,
+            40.665
+          ],
+          [
+            -73.9642,
+            40.6685
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_009",
+        "parent_edge_id": "seed",
+        "length_m": 402.12752625472507,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_009",
+        "target": "PP_SEED_010",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9642,
+            40.6685
+          ],
+          [
+            -73.963,
+            40.6635
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_011",
+        "parent_edge_id": "seed",
+        "length_m": 565.1121588527142,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_010",
+        "target": "PP_SEED_011",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.963,
+            40.6635
+          ],
+          [
+            -73.9618,
+            40.6614
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_012",
+        "parent_edge_id": "seed",
+        "length_m": 254.50277898082996,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_011",
+        "target": "PP_SEED_012",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9618,
+            40.6614
+          ],
+          [
+            -73.9616,
+            40.6575
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_013",
+        "parent_edge_id": "seed",
+        "length_m": 433.9882388375178,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_012",
+        "target": "PP_SEED_013",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9616,
+            40.6575
+          ],
+          [
+            -73.9681,
+            40.6574
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_014",
+        "parent_edge_id": "seed",
+        "length_m": 548.4171013474272,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_013",
+        "target": "PP_SEED_014",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9681,
+            40.6574
+          ],
+          [
+            -73.9737,
+            40.6552
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_016",
+        "parent_edge_id": "seed",
+        "length_m": 531.9763440606954,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_014",
+        "target": "PP_SEED_015",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9737,
+            40.6552
+          ],
+          [
+            -73.9776,
+            40.6539
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_017",
+        "parent_edge_id": "seed",
+        "length_m": 359.35311162659866,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_015",
+        "target": "PP_SEED_016",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9776,
+            40.6539
+          ],
+          [
+            -73.9801,
+            40.6572
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_018",
+        "parent_edge_id": "seed",
+        "length_m": 423.229153541352,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_016",
+        "target": "PP_SEED_017",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9801,
+            40.6572
+          ],
+          [
+            -73.9796,
+            40.6606
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_019",
+        "parent_edge_id": "seed",
+        "length_m": 380.4080535441846,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_017",
+        "target": "PP_SEED_018",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9796,
+            40.6606
+          ],
+          [
+            -73.9768,
+            40.6645
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_020",
+        "parent_edge_id": "seed",
+        "length_m": 493.8011934265657,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_018",
+        "target": "PP_SEED_019",
+        "park_id": "prospect_park"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -73.9768,
+            40.6645
+          ],
+          [
+            -73.9741,
+            40.6707
+          ]
+        ]
+      },
+      "properties": {
+        "edge_id": "PP_SEED_EDGE_022",
+        "parent_edge_id": "seed",
+        "length_m": 726.0452449632828,
+        "sinuosity": 1.0,
+        "cum_turn_deg": 0.0,
+        "curvature": 0.0,
+        "near_road_crossing": false,
+        "has_stairs": false,
+        "has_signalized_crossing": false,
+        "surface": "unknown",
+        "highway": "path",
+        "name": "Prospect Park seed path",
+        "source": "PP_SEED_019",
+        "target": "PP_SEED_020",
+        "park_id": "prospect_park"
+      }
+    }
+  ]
+}
