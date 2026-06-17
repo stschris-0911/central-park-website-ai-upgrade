@@ -1,4 +1,52 @@
 {
   "type": "FeatureCollection",
-  "features": []
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9631804,
+          40.6585236
+        ]
+      },
+      "properties": {
+        "node_id": "PPPOI4105663834",
+        "grid_node_code": "PPPOI4105663834",
+        "display_name": "Gate",
+        "node_type": "poi",
+        "node_subtype": "entrance",
+        "display_group": "entrance",
+        "description": "{\"barrier\": \"gate\"}",
+        "infra_type": "entrance",
+        "infra_class": "entrance",
+        "park_id": "prospect_park",
+        "osm_barrier": "gate"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -73.9769822,
+          40.6610075
+        ]
+      },
+      "properties": {
+        "node_id": "PPPOI11328497187",
+        "grid_node_code": "PPPOI11328497187",
+        "display_name": "Gate",
+        "node_type": "poi",
+        "node_subtype": "entrance",
+        "display_group": "entrance",
+        "description": "{\"barrier\": \"gate\", \"maxwidth:physical\": \"6'0\\\"\"}",
+        "infra_type": "entrance",
+        "infra_class": "entrance",
+        "park_id": "prospect_park",
+        "osm_barrier": "gate",
+        "osm_maxwidth:physical": "6'0\""
+      }
+    }
+  ]
 }

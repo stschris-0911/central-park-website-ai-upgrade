@@ -12,7 +12,7 @@ vision-fusion logic.
 | Park | Data folder | Status |
 | --- | --- | --- |
 | Central Park | `data/app_data/` | Full existing graph data |
-| Prospect Park | `data/prospect_park_app_data/` | Offline seed graph included; regenerate from OpenStreetMap before real field testing |
+| Prospect Park | `data/prospect_park_app_data/` | OpenStreetMap/Overpass walkable graph with water restricted areas |
 
 The frontend has a compact park selector in the top bar. Switching parks clears
 the active route, reloads that park's nodes/edges, and keeps the same navigation
@@ -114,16 +114,16 @@ scripts/generate_prospect_park_data.py
 data/prospect_park_app_data/
 ```
 
-Run this when internet access is available to replace the offline seed graph
-with OpenStreetMap/Overpass-derived Prospect Park walkable data:
+Run this when internet access is available to refresh the OpenStreetMap/Overpass
+walkable graph and water restricted areas:
 
 ```bash
 /opt/anaconda3/bin/python3 scripts/generate_prospect_park_data.py
 ```
 
-If Overpass is unavailable, the script writes an offline seed graph so the app
-can still test multi-park UI and route plumbing. Do not use the seed graph for
-real navigation validation.
+If Overpass is unavailable, the script falls back to a conservative offline
+seed graph so the app can still test multi-park UI and route plumbing. The
+checked-in Prospect Park data is generated from Overpass, not the seed graph.
 
 ## Verification
 
@@ -131,7 +131,8 @@ Latest checked locally:
 
 - Python backend compile passed
 - Central Park strict route passed
-- Prospect Park strict route passed with seed graph
+- Prospect Park strict route passed with Overpass graph
+- Prospect Park Lullwater sample route avoids non-bridge water crossings
 - `npm run build` passed
 - `npx cap sync ios` passed using Node 24
 - `xcodebuild ... CODE_SIGNING_ALLOWED=NO build` passed

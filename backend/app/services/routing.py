@@ -185,6 +185,10 @@ def _truthy(value: Any) -> bool:
     return bool(value)
 
 
+def _edge_can_cross_restricted_area(edge_attrs: dict[str, Any]) -> bool:
+    return _truthy(edge_attrs.get("bridge")) or _truthy(edge_attrs.get("tunnel"))
+
+
 def _edge_length_m(edge_attrs: dict[str, Any], coords: list[tuple[float, float]] | None = None) -> float:
     for key in ("length_m", "length"):
         value = edge_attrs.get(key)
@@ -712,6 +716,8 @@ def _restricted_area_filtered_graph(graph, transformer, park_id: str | None = No
             continue
 
         edge_attrs = _get_edge_attrs(attrs) or attrs
+        if _edge_can_cross_restricted_area(edge_attrs):
+            continue
         segment = _edge_coords_lonlat(edge_attrs, transformer) or [u_coord, v_coord]
 
         if _line_touches_restricted_area_lonlat(segment, park_id):

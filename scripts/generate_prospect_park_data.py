@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import pickle
 from pathlib import Path
 from typing import Any
 
 import networkx as nx
 import requests
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString, Point, Polygon, mapping, shape
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -164,15 +165,127 @@ map_to_area -> .park;
   node(area.park)["shop"];
   node(area.park)["historic"];
   node(area.park)["natural"];
+  way(area.park)["natural"="water"];
+  relation(area.park)["natural"="water"];
+  way(area.park)["water"];
+  relation(area.park)["water"];
 );
 out body geom;
 """.strip()
 
 
 def fetch_overpass() -> dict[str, Any]:
+    cached_json = os.getenv("PROSPECT_PARK_OVERPASS_JSON", "").strip()
+    if cached_json:
+        return json.loads(Path(cached_json).read_text(encoding="utf-8"))
     response = requests.post(OVERPASS_URL, data={"data": overpass_query()}, timeout=180)
     response.raise_for_status()
     return response.json()
+
+
+def is_water_element(element: dict[str, Any]) -> bool:
+    tags = element_tags(element)
+    natural = str(tags.get("natural", "")).lower()
+    water = str(tags.get("water", "")).lower()
+    landuse = str(tags.get("landuse", "")).lower()
+    return natural == "water" or bool(water) or landuse in {"reservoir", "basin"}
+
+
+def closed_way_polygon(element: dict[str, Any]) -> Polygon | None:
+    coords = way_geometry(element)
+    if len(coords) < 4:
+        return None
+    if coords[0] != coords[-1]:
+        return None
+    try:
+        polygon = Polygon(coords)
+        if polygon.is_valid and polygon.area > 0:
+            return polygon
+    except Exception:
+        return None
+    return None
+
+
+def water_polygons_from_elements(elements: list[dict[str, Any]]) -> list[Polygon]:
+    polygons: list[Polygon] = []
+    for element in elements:
+        if element.get("type") != "way" or not is_water_element(element):
+            continue
+        polygon = closed_way_polygon(element)
+        if polygon is not None:
+            polygons.append(polygon)
+    return polygons
+
+
+def fallback_lullwater_polygon() -> Polygon:
+    # Conservative local water mask for the Boathouse/Lullwater area. This is
+    # used only when Overpass water polygons are unavailable.
+    coords = [
+        (-73.97010, 40.65915),
+        (-73.96935, 40.66165),
+        (-73.96815, 40.66325),
+        (-73.96670, 40.66340),
+        (-73.96535, 40.66130),
+        (-73.96605, 40.65935),
+        (-73.96765, 40.65735),
+        (-73.96930, 40.65770),
+        (-73.97010, 40.65915),
+    ]
+    return Polygon(coords)
+
+
+def write_restricted_areas(polygons: list[Polygon], source: str) -> None:
+    restricted_dir = OUT_DIR / "restricted_areas"
+    restricted_dir.mkdir(parents=True, exist_ok=True)
+    if not polygons:
+        polygons = [fallback_lullwater_polygon()]
+        source = "fallback_lullwater"
+
+    features = []
+    for index, polygon in enumerate(polygons, start=1):
+        features.append(
+            {
+                "type": "Feature",
+                "geometry": mapping(polygon),
+                "properties": {
+                    "id": f"prospect_park_water_{index:03d}",
+                    "name": "Prospect Park water area",
+                    "kind": "water",
+                    "source": source,
+                },
+            }
+        )
+
+    (restricted_dir / "prospect_park_water.geojson").write_text(
+        json.dumps({"type": "FeatureCollection", "features": features}, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def remove_edges_touching_water(graph: nx.Graph, polygons: list[Polygon]) -> None:
+    if not polygons:
+        polygons = [fallback_lullwater_polygon()]
+    edges_to_remove: list[tuple[Any, Any]] = []
+    nodes_to_remove: list[Any] = []
+
+    for node_id, attrs in graph.nodes(data=True):
+        point = Point(float(attrs["lon"]), float(attrs["lat"]))
+        if any(polygon.contains(point) for polygon in polygons):
+            nodes_to_remove.append(node_id)
+
+    graph.remove_nodes_from(nodes_to_remove)
+
+    for u, v, attrs in list(graph.edges(data=True)):
+        line = attrs.get("geometry")
+        if line is None:
+            continue
+        if str(attrs.get("bridge", "")).lower() in {"yes", "true", "1"}:
+            continue
+        midpoint = line.interpolate(0.5, normalized=True)
+        if any(line.crosses(polygon) or line.within(polygon) or polygon.contains(midpoint) for polygon in polygons):
+            edges_to_remove.append((u, v))
+
+    graph.remove_edges_from(edges_to_remove)
 
 
 def build_seed_graph() -> nx.Graph:
@@ -317,6 +430,8 @@ def add_way_to_graph(graph: nx.Graph, way: dict[str, Any]) -> None:
             has_signalized_crossing=signalized,
             surface=surface,
             highway=str(tags.get("highway") or ""),
+            bridge=str(tags.get("bridge") or ""),
+            tunnel=str(tags.get("tunnel") or ""),
             name=str(tags.get("name") or ""),
         )
 
@@ -438,6 +553,12 @@ def main() -> None:
         source = "offline_seed"
         graph = build_seed_graph()
 
+    water_polygons = water_polygons_from_elements(elements) if source != "offline_seed" else []
+    if source == "offline_seed":
+        water_polygons = [fallback_lullwater_polygon()]
+    remove_edges_touching_water(graph, water_polygons)
+    write_restricted_areas(water_polygons, source)
+
     nodes = graph_node_features(graph)
     nodes += seed_poi_features() if source == "offline_seed" else poi_features(elements, graph)
     edges = edge_features(graph)
@@ -464,8 +585,8 @@ def main() -> None:
         "center": [sum(lats) / len(lats), sum(lons) / len(lons)],
         "bounds": [[min(lats), min(lons)], [max(lats), max(lons)]],
         "source": source,
-        "notes": "Generated with the same walkable-graph contract used by the NYC Park navigation backend. Replace offline_seed output with Overpass output before real navigation testing.",
-        "counts": {"nodes": len(graph.nodes), "edges": len(graph.edges), "features": len(nodes)},
+        "notes": "Generated with the same walkable-graph contract used by the NYC Park navigation backend. Water polygons are exported as restricted areas and graph edges crossing water are removed.",
+        "counts": {"nodes": len(graph.nodes), "edges": len(graph.edges), "features": len(nodes), "water_polygons": len(water_polygons)},
     }
     (OUT_DIR / "app_manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 

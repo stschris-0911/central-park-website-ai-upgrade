@@ -8,24 +8,25 @@
   "graph_pickle": "park_graph.pkl",
   "graph_crs": "EPSG:4326",
   "center": [
-    40.66343,
-    -73.97063
+    40.661714170874255,
+    -73.96922901978444
   ],
   "bounds": [
     [
-      40.6539,
-      -73.9801
+      40.6514732,
+      -73.9794392
     ],
     [
-      40.6743,
-      -73.9616
+      40.6722785,
+      -73.9621779
     ]
   ],
-  "source": "offline_seed",
-  "notes": "Generated with the same walkable-graph contract used by the NYC Park navigation backend. Replace offline_seed output with Overpass output before real navigation testing.",
+  "source": "OpenStreetMap Overpass API",
+  "notes": "Generated with the same walkable-graph contract used by the NYC Park navigation backend. Water polygons are exported as restricted areas and graph edges crossing water are removed.",
   "counts": {
-    "nodes": 20,
-    "edges": 25,
-    "features": 24
+    "nodes": 4175,
+    "edges": 4445,
+    "features": 5169,
+    "water_polygons": 14
   }
 }
