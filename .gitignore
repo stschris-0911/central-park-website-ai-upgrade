@@ -10,5 +10,6 @@ backend/.pytest_cache/
 data/app_data/*.pkl
 data/app_data/*.geojson
 data/app_data/*.csv
+data/*/route_runtime_cache.pkl
 !data/app_data/README.md
 !data/app_data/app_manifest.example.json

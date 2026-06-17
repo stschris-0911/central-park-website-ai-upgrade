@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import pickle
 from functools import lru_cache
 from typing import Any
 
@@ -18,6 +19,9 @@ from app.services.data_loader import (
     load_manifest,
     normalize_park_id,
 )
+
+ROUTE_RUNTIME_CACHE_FILE = "route_runtime_cache.pkl"
+ROUTE_RUNTIME_CACHE_VERSION = 1
 
 
 def _is_lonlat_pair(x: float, y: float) -> bool:
@@ -396,27 +400,48 @@ def _project_point_to_segment_lonlat(
     return foot, _meters_from_lonlat(point, foot), t
 
 
+def _route_runtime_cache_path(park_id: str):
+    return get_park_data_dir(park_id) / ROUTE_RUNTIME_CACHE_FILE
+
+
 @lru_cache(maxsize=8)
-def _prepared_route_graph(park_id: str):
+def _load_route_runtime_cache(park_id: str):
+    cache_path = _route_runtime_cache_path(park_id)
+    if not cache_path.exists():
+        return None
+
+    try:
+        with cache_path.open("rb") as f:
+            payload = pickle.load(f)
+    except Exception:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("version") != ROUTE_RUNTIME_CACHE_VERSION:
+        return None
+    if payload.get("park_id") != park_id:
+        return None
+    graph = payload.get("graph")
+    snap_records = payload.get("snap_records")
+    if graph is None or snap_records is None:
+        return None
+
+    return payload
+
+
+def _compute_route_runtime_cache(park_id: str):
     graph = load_graph(park_id)
     if graph is None or len(graph.nodes) == 0:
-        return None, None
+        return None
 
     transformer = _make_transformer(_graph_crs(graph, park_id))
     graph = _restricted_area_filtered_graph(graph, transformer, park_id)
     if graph is None or len(graph.nodes) == 0:
-        return None, transformer
+        return None
 
     graph = _drop_inconsistent_edges(graph, transformer)
     _precompute_route_weights(graph, transformer)
-    return graph, transformer
-
-
-@lru_cache(maxsize=8)
-def _route_snap_records(park_id: str):
-    graph, transformer = _prepared_route_graph(park_id)
-    if graph is None:
-        return tuple()
 
     records = []
     for u, v, attrs in graph.edges(data=True):
@@ -425,7 +450,59 @@ def _route_snap_records(park_id: str):
         if len(coords) >= 2:
             records.append((u, v, edge_attrs, coords))
 
-    return tuple(records)
+    return {
+        "version": ROUTE_RUNTIME_CACHE_VERSION,
+        "park_id": park_id,
+        "graph_crs": _graph_crs(graph, park_id),
+        "node_count": len(graph.nodes),
+        "edge_count": len(graph.edges),
+        "graph": graph,
+        "snap_records": tuple(records),
+    }
+
+
+@lru_cache(maxsize=8)
+def _route_runtime_cache(park_id: str):
+    return _load_route_runtime_cache(park_id) or _compute_route_runtime_cache(park_id)
+
+
+def build_route_runtime_cache(park_id: str | None = None, write: bool = True):
+    normalized_park_id = normalize_park_id(park_id)
+    payload = _compute_route_runtime_cache(normalized_park_id)
+    if payload is None:
+        raise ValueError(f"Could not build route runtime cache for {normalized_park_id}.")
+
+    if write:
+        cache_path = _route_runtime_cache_path(normalized_park_id)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with cache_path.open("wb") as f:
+            pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+        _load_route_runtime_cache.cache_clear()
+        _route_runtime_cache.cache_clear()
+        _prepared_route_graph.cache_clear()
+        _route_snap_records.cache_clear()
+
+    return payload
+
+
+@lru_cache(maxsize=8)
+def _prepared_route_graph(park_id: str):
+    payload = _route_runtime_cache(park_id)
+    if payload is None:
+        return None, None
+
+    graph = payload["graph"]
+    transformer = _make_transformer(_graph_crs(graph, park_id))
+    return graph, transformer
+
+
+@lru_cache(maxsize=8)
+def _route_snap_records(park_id: str):
+    payload = _route_runtime_cache(park_id)
+    if payload is None:
+        return tuple()
+    return tuple(payload["snap_records"])
 
 
 def _nearest_graph_edge_location(graph, lon: float, lat: float, transformer=None, park_id: str | None = None):
