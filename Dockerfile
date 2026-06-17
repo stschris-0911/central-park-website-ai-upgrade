@@ -15,8 +15,6 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 COPY backend /app/backend
 COPY data /app/data
-COPY scripts /app/scripts
-RUN PYTHONPATH=/app/backend python /app/scripts/precompute_route_cache.py
 COPY --from=frontend-builder /app/frontend/dist /app/frontend/dist
 
 WORKDIR /app/backend
